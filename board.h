@@ -10,4 +10,7 @@ struct Board {
     int castlingRights;
     int halfMoveClock;
     int fullMoveNumber;
+
+    void init();
+    void printBoard();
 };
