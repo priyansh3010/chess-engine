@@ -13,4 +13,5 @@ struct Board {
 
     void init();
     void printBoard();
+    Piece getPieceAt(Color color, int square) const;
 };

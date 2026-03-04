@@ -67,3 +67,12 @@ void Board::printBoard() {
         cout << endl;
     }
 }
+
+Piece Board::getPieceAt(Color color, int square) const {
+    U64 mask = 1ULL << square;
+    for (int pt = PAWN; pt <= KING; pt++) {
+        if (pieces[color][pt] & mask)
+            return static_cast<Piece>(pt);
+    }
+    return NONE;
+}
