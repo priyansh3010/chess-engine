@@ -1,9 +1,9 @@
 #pragma once
 #include "types.h"
+#include "move.h"
 
 struct MoveInfo {
-    Square fromSquare;
-    Square toSquare;
+    Move move;
     int prevEnPassantSquare;
     int prevCastling;
     int prevHalfMoveClock;
