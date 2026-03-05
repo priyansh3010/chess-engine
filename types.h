@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <intrin.h>
+#include <array>
 
 typedef uint64_t U64;
 
@@ -30,3 +31,5 @@ inline int getLSB(U64 bitboard) {
 
 const U64 MASK_A_FILE = 0x0101010101010101ULL; // A file mask
 const U64 MASK_H_FILE = 0x8080808080808080ULL; // H file mask
+const U64 MASK_A_B_FILE = 0x0303030303030303ULL; // A and B file mask
+const U64 MASK_G_H_FILE = 0xC0C0C0C0C0C0C0C0ULL; // G and H file mask
