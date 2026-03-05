@@ -325,9 +325,56 @@ namespace {
             return pawn1;
         }
     }
+    vector<Move> generateKnightMoves(const Board& board) {
+        U64 knights = board.pieces[board.sideToMove][KNIGHT];
+
+        // Go through all the players knights
+        vector<Move> moveList;
+        while (knights) {
+            int fromSquare = getLSB(knights);
+            
+            // Retrieve knight attack of each player knight and make sure it cannot capture own player pieces
+            U64 knightMoves = MoveGen::knightAttacks[fromSquare] & ~board.occupancy[board.sideToMove];
+
+            // Loop through all moves retrieved and store it
+            while (knightMoves) {
+                int toSquare = getLSB(knightMoves);
+                Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+                Move move(fromSquare, toSquare, KNIGHT, captured); // Captured == None if no enemy piece exists at toSquare
+                moveList.push_back(move);
+                
+                knightMoves &= knightMoves - 1;
+            }
+
+            knights &= knights - 1;
+        }
+
+        return moveList;
+    }
 }
 
 namespace MoveGen {
+
+    void init() {
+        //. pre-compute knight moves
+        for (int i = 0; i < 64; i++) {
+            U64 currIndex = 1 << i;
+            U64 northWestWest = (currIndex << 6) && ~MASK_G_H_FILE;
+            U64 northNorthWest = (currIndex << 15) & ~MASK_H_FILE;
+            U64 northNorthEast = (currIndex << 17) & ~MASK_A_FILE;
+            U64 northEastEast = (currIndex << 10) & ~MASK_A_B_FILE;
+            U64 southEastEast = (currIndex >> 6) & ~MASK_A_B_FILE;
+            U64 southSouthEast = (currIndex >> -15) & ~MASK_A_FILE;
+            U64 southSouthWest = (currIndex >> -17) & ~MASK_H_FILE;
+            U64 southWestWest = (currIndex >> -10) & ~MASK_G_H_FILE;
+
+            U64 currMoveMap = northWestWest | northNorthWest | northNorthEast | northEastEast
+                            | southWestWest | southSouthWest | southSouthEast | southEastEast;
+            
+            knightAttacks[i] = currMoveMap;
+        }
+    }
+
     vector<Move> MoveGen::generateLegalMoves(const Board& board) {
         return generatePawnMoves(board);
     }
