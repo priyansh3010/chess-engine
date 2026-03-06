@@ -662,6 +662,60 @@ namespace {
 
         return diagonalSlidingMoves;
     }
+    vector<Move> generateKingMoves(const Board& board) {
+        U64 kingMask = board.pieces[board.sideToMove][KING];
+
+        int fromSquare = getLSB(kingMask);
+        
+        // north west
+        if (((kingMask << 9) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare + 9;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+        // north
+        if ((kingMask << 8) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare + 8;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+        // north east
+        if (((kingMask << 7) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare + 7;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+        // east
+        if (((kingMask >> 1) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare - 1;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+        // south east
+        if (((kingMask >> 9) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare - 9;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+        // south
+        if ((kingMask >> 8) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare - 8;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+        // south west
+        if (((kingMask >> 7) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare - 7;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+        // west
+        if (((kingMask << 1) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
+            int toSquare = fromSquare + 1;
+            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
+            Move move(fromSquare, toSquare, KING, captured);
+        }
+    }
 }
 
 namespace MoveGen {
