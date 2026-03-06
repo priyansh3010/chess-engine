@@ -8,8 +8,6 @@ using namespace std;
 
 namespace MoveGen {
 
-    vector<U64> knightAttacks(1ULL, 64);
-
     void init();
     vector<Move> generateLegalMoves(const Board& board);
 }

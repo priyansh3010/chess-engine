@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <string>
 #include <vector>
 #include "board.h"
 #include "movegen.h"
@@ -8,10 +9,30 @@
 using namespace std;
 
 namespace {
+    U64 knightAttacks[64];
+    // pre-compute knight moves
+    void preComputeKnightMoves() {
+        for (int i = 0; i < 64; i++) {
+            U64 currIndex = 1ULL << i;
+            U64 northWestWest = (currIndex << 6) & ~MASK_G_H_FILE;
+            U64 northNorthWest = (currIndex << 15) & ~MASK_H_FILE;
+            U64 northNorthEast = (currIndex << 17) & ~MASK_A_FILE;
+            U64 northEastEast = (currIndex << 10) & ~MASK_A_B_FILE;
+            U64 southEastEast = (currIndex >> 6) & ~MASK_A_B_FILE;
+            U64 southSouthEast = (currIndex >> 15) & ~MASK_A_FILE;
+            U64 southSouthWest = (currIndex >> 17) & ~MASK_H_FILE;
+            U64 southWestWest = (currIndex >> 10) & ~MASK_G_H_FILE;
+            
+            U64 currMoveMap = northWestWest | northNorthWest | northNorthEast | northEastEast
+                            | southWestWest | southSouthWest | southSouthEast | southEastEast;
+            
+            knightAttacks[i] = currMoveMap;
+        }
+    }
     // Pawn move functions
     vector<Move> wPawnSinglePush(const Board& board) {
         U64 emptySquares = ~board.occupancy[ALL];
-        U64 rank7Mask = 0x00FF000000000000ULL; // Will highlight all pawns below 7th rank
+        U64 rank7Mask = 0x00FF000000000000ULL; // Will highlight all pawns on 7th rank
 
         U64 singlePush = ((board.pieces[WHITE][PAWN] & ~rank7Mask) << 8) & emptySquares; // all squares white pawns can move to
         
@@ -36,18 +57,14 @@ namespace {
             int fromSquare = toSquare - 8;
             
             // All 4 promotions
-            Move move(fromSquare, toSquare, PAWN, NONE, QUEEN);
-            moveList.push_back(move); 
-            Move move(fromSquare, toSquare, PAWN, NONE, ROOK);
-            moveList.push_back(move); 
-            Move move(fromSquare, toSquare, PAWN, NONE, BISHOP);
-            moveList.push_back(move); 
-            Move move(fromSquare, toSquare, PAWN, NONE, KNIGHT);
-            moveList.push_back(move); 
-
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, QUEEN));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, ROOK)); 
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, BISHOP));             
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, KNIGHT)); 
+            
             promoPawns &= promoPawns - 1;
         }
-
+        
         return moveList;
     }
     vector<Move> wPawnDoublePush(const Board& board) {
@@ -110,14 +127,11 @@ namespace {
             int fromSquare = toSquare - 7;
             
             Piece captured = board.getPieceAt(BLACK, toSquare);
-            Move move(fromSquare, toSquare, PAWN, captured, QUEEN);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, ROOK);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, BISHOP);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, KNIGHT);
-            moveList.push_back(move);
+
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
             
             leftPromoCaptures &= leftPromoCaptures - 1; // move onto next least significant bit
         }
@@ -128,14 +142,11 @@ namespace {
             int fromSquare = toSquare - 9;
             
             Piece captured = board.getPieceAt(BLACK, toSquare);
-            Move move(fromSquare, toSquare, PAWN, captured, QUEEN);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, ROOK);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, BISHOP);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, KNIGHT);
-            moveList.push_back(move);
+
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
 
             rightPromoCaptures &= rightPromoCaptures - 1; // move onto next least significant bit
         }
@@ -157,12 +168,12 @@ namespace {
     }
     vector<Move> bPawnSinglePush(const Board& board) {
         U64 emptySquares = ~board.occupancy[ALL];
-        U64 rank2Mask = 0x000000000000FF00ULL; // Will highlight all pawns below 7th rank
+        U64 rank2Mask = 0x000000000000FF00ULL; // Will highlight all pawns below 2nd rank
 
         U64 singlePush = ((board.pieces[BLACK][PAWN] & ~rank2Mask) << 8) & emptySquares; // all squares white pawns can move to
         
-        U64 rank2Mask = board.pieces[BLACK][PAWN] & rank2Mask; // all squares 7th rank white pawns can move to
-        U64 promoPawns = (rank2Mask >> 8) & emptySquares;
+        U64 rank2Pawns = board.pieces[BLACK][PAWN] & rank2Mask; // all squares 2nd rank white pawns can move to
+        U64 promoPawns = (rank2Pawns >> 8) & emptySquares;
 
         vector<Move> moveList;
 
@@ -181,14 +192,10 @@ namespace {
             int fromSquare = toSquare + 8;
             
             // All 4 promotions
-            Move move(fromSquare, toSquare, PAWN, NONE, QUEEN);
-            moveList.push_back(move); 
-            Move move(fromSquare, toSquare, PAWN, NONE, ROOK);
-            moveList.push_back(move); 
-            Move move(fromSquare, toSquare, PAWN, NONE, BISHOP);
-            moveList.push_back(move); 
-            Move move(fromSquare, toSquare, PAWN, NONE, KNIGHT);
-            moveList.push_back(move); 
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, QUEEN));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, ROOK));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, BISHOP));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, KNIGHT));
 
             promoPawns &= promoPawns - 1;
         }
@@ -255,14 +262,11 @@ namespace {
             int fromSquare = toSquare + 7;
             
             Piece captured = board.getPieceAt(WHITE, toSquare);
-            Move move(fromSquare, toSquare, PAWN, captured, QUEEN);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, ROOK);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, BISHOP);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, KNIGHT);
-            moveList.push_back(move);
+            
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
             
             leftPromoCaptures &= leftPromoCaptures - 1; // move onto next least significant bit
         }
@@ -273,14 +277,11 @@ namespace {
             int fromSquare = toSquare + 9;
             
             Piece captured = board.getPieceAt(WHITE, toSquare);
-            Move move(fromSquare, toSquare, PAWN, captured, QUEEN);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, ROOK);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, BISHOP);
-            moveList.push_back(move);
-            Move move(fromSquare, toSquare, PAWN, captured, KNIGHT);
-            moveList.push_back(move);
+
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
+            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
 
             rightPromoCaptures &= rightPromoCaptures - 1; // move onto next least significant bit
         }
@@ -302,31 +303,31 @@ namespace {
     }
     vector<Move> generatePawnMoves(const Board& board) {
 
-        if (board.sideToMove == WHITE) {   
-            vector<Move> pawn1 = wPawnSinglePush(board);
+        if (board.sideToMove == WHITE) {
+            vector<Move> pawn1 = wPawnSinglePush(board); 
             vector<Move> pawn2 = wPawnDoublePush(board);
             vector<Move> pawn3 = wPawnCapture(board);
             
-            pawn1.reserve(pawn1.size() + pawn2.size() + pawn3.size());
-            pawn1.insert(end(pawn1), begin(pawn2), end(pawn2));
+            pawn1.reserve(pawn1.size() + pawn2.size() + pawn3.size()); 
+            pawn1.insert(end(pawn1), begin(pawn2), end(pawn2));  
             pawn1.insert(end(pawn1), begin(pawn3), end(pawn3));
             
             return pawn1;
         }
         else {
-            vector<Move> pawn1 = wPawnSinglePush(board);
-            vector<Move> pawn2 = wPawnDoublePush(board);
-            vector<Move> pawn3 = wPawnCapture(board);
+            vector<Move> pawn1 = bPawnSinglePush(board);
+            vector<Move> pawn2 = bPawnDoublePush(board); 
+            vector<Move> pawn3 = bPawnCapture(board);  
             
-            pawn1.reserve(pawn1.size() + pawn2.size() + pawn3.size());
-            pawn1.insert(end(pawn1), begin(pawn2), end(pawn2));
-            pawn1.insert(end(pawn1), begin(pawn3), end(pawn3));
+            pawn1.reserve(pawn1.size() + pawn2.size() + pawn3.size());  
+            pawn1.insert(end(pawn1), begin(pawn2), end(pawn2)); 
+            pawn1.insert(end(pawn1), begin(pawn3), end(pawn3)); 
             
             return pawn1;
         }
     }
     vector<Move> generateKnightMoves(const Board& board) {
-        U64 knights = board.pieces[board.sideToMove][KNIGHT];
+        U64 knights = board.pieces[WHITE][KNIGHT];
 
         // Go through all the players knights
         vector<Move> moveList;
@@ -334,15 +335,13 @@ namespace {
             int fromSquare = getLSB(knights);
             
             // Retrieve knight attack of each player knight and make sure it cannot capture own player pieces
-            U64 knightMoves = MoveGen::knightAttacks[fromSquare] & ~board.occupancy[board.sideToMove];
-
+            U64 knightMoves = knightAttacks[fromSquare] & ~board.occupancy[board.sideToMove];
             // Loop through all moves retrieved and store it
             while (knightMoves) {
                 int toSquare = getLSB(knightMoves);
                 Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                 Move move(fromSquare, toSquare, KNIGHT, captured); // Captured == None if no enemy piece exists at toSquare
                 moveList.push_back(move);
-                
                 knightMoves &= knightMoves - 1;
             }
 
@@ -356,26 +355,11 @@ namespace {
 namespace MoveGen {
 
     void init() {
-        //. pre-compute knight moves
-        for (int i = 0; i < 64; i++) {
-            U64 currIndex = 1 << i;
-            U64 northWestWest = (currIndex << 6) && ~MASK_G_H_FILE;
-            U64 northNorthWest = (currIndex << 15) & ~MASK_H_FILE;
-            U64 northNorthEast = (currIndex << 17) & ~MASK_A_FILE;
-            U64 northEastEast = (currIndex << 10) & ~MASK_A_B_FILE;
-            U64 southEastEast = (currIndex >> 6) & ~MASK_A_B_FILE;
-            U64 southSouthEast = (currIndex >> -15) & ~MASK_A_FILE;
-            U64 southSouthWest = (currIndex >> -17) & ~MASK_H_FILE;
-            U64 southWestWest = (currIndex >> -10) & ~MASK_G_H_FILE;
-
-            U64 currMoveMap = northWestWest | northNorthWest | northNorthEast | northEastEast
-                            | southWestWest | southSouthWest | southSouthEast | southEastEast;
-            
-            knightAttacks[i] = currMoveMap;
-        }
+        preComputeKnightMoves();
     }
 
     vector<Move> MoveGen::generateLegalMoves(const Board& board) {
-        return generatePawnMoves(board);
+        vector<Move> moves = generateKnightMoves(board);
+        return moves;
     }
 }
