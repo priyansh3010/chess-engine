@@ -612,6 +612,40 @@ namespace {
 
         return moveList;
     }
+    vector<Move> generateDiagonalSlidingMoves(const Board& board, Piece piece) {
+        // generate all diagonal moves
+        vector<Move> diagonalSlidingMoves1 = northWestSliding(board, piece); 
+        vector<Move> diagonalSlidingMoves2 = northEastSliding(board, piece);
+        vector<Move> diagonalSlidingMoves3 = southEastSliding(board, piece);
+        vector<Move> diagonalSlidingMoves4 = southWestSliding(board, piece);
+
+        diagonalSlidingMoves1.reserve(diagonalSlidingMoves1.size() + diagonalSlidingMoves2.size()
+                                    + diagonalSlidingMoves3.size() + diagonalSlidingMoves4.size());
+
+        // merge all into one vector
+        diagonalSlidingMoves1.insert(end(diagonalSlidingMoves1), begin(diagonalSlidingMoves2), end(diagonalSlidingMoves2));  
+        diagonalSlidingMoves1.insert(end(diagonalSlidingMoves1), begin(diagonalSlidingMoves3), end(diagonalSlidingMoves3));
+        diagonalSlidingMoves1.insert(end(diagonalSlidingMoves1), begin(diagonalSlidingMoves4), end(diagonalSlidingMoves4));
+        
+        return diagonalSlidingMoves1;
+    }
+    vector<Move> generateStraightSlidingMoves(const Board& board, Piece piece) {
+        // generate all diagonal moves
+        vector<Move> straightSlidingMoves1 = northSliding(board, piece); 
+        vector<Move> straightSlidingMoves2 = eastSliding(board, piece);
+        vector<Move> straightSlidingMoves3 = southSliding(board, piece);
+        vector<Move> straightSlidingMoves4 = westSliding(board, piece);
+
+        straightSlidingMoves1.reserve(straightSlidingMoves1.size() + straightSlidingMoves2.size()
+                                    + straightSlidingMoves3.size() + straightSlidingMoves4.size());
+
+        // merge all into one vector
+        straightSlidingMoves1.insert(end(straightSlidingMoves1), begin(straightSlidingMoves2), end(straightSlidingMoves2));  
+        straightSlidingMoves1.insert(end(straightSlidingMoves1), begin(straightSlidingMoves3), end(straightSlidingMoves3));
+        straightSlidingMoves1.insert(end(straightSlidingMoves1), begin(straightSlidingMoves4), end(straightSlidingMoves4));
+        
+        return straightSlidingMoves1;
+    }
 }
 
 namespace MoveGen {
