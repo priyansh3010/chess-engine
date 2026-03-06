@@ -314,9 +314,9 @@ namespace {
 
             U64 currPieceMask = 1ULL << fromSquare;
 
-            // Loop north west 
+            // loop north west 
             while (((currPieceMask << 9) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
-                int toSquare = fromSquare - 9;
+                int toSquare = fromSquare + 9;
                 if (currPieceMask & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
                     Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                     Move move(fromSquare, toSquare, piece, captured);
@@ -346,9 +346,9 @@ namespace {
 
             U64 currPieceMask = 1ULL << fromSquare;
 
-            // Loop north east 
+            // loop north east 
             while (((currPieceMask << 7) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
-                int toSquare = fromSquare - 7;
+                int toSquare = fromSquare + 7;
                 if (currPieceMask & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
                     Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                     Move move(fromSquare, toSquare, piece, captured);
@@ -378,9 +378,9 @@ namespace {
 
             U64 currPieceMask = 1ULL << fromSquare;
 
-            // Loop south east 
-            while (((currPieceMask >> 7) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
-                int toSquare = fromSquare + 7;
+            // loop south east 
+            while (((currPieceMask >> 9) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
+                int toSquare = fromSquare - 9;
                 if (currPieceMask & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
                     Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                     Move move(fromSquare, toSquare, piece, captured);
@@ -392,7 +392,7 @@ namespace {
                     moveList.push_back(move);
                 }
                 
-                currPieceMask >>= 7;
+                currPieceMask >>= 9;
             }
 
             pieces &= pieces - 1;
@@ -410,9 +410,9 @@ namespace {
 
             U64 currPieceMask = 1ULL << fromSquare;
 
-            // Loop south west 
-            while (((currPieceMask >> 9) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
-                int toSquare = fromSquare + 9;
+            // loop south west 
+            while (((currPieceMask >> 7) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
+                int toSquare = fromSquare - 7;
                 if (currPieceMask & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
                     Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                     Move move(fromSquare, toSquare, piece, captured);
@@ -424,7 +424,7 @@ namespace {
                     moveList.push_back(move);
                 }
                 
-                currPieceMask <<= 7;
+                currPieceMask >>= 7;
             }
 
             pieces &= pieces - 1;
@@ -446,7 +446,7 @@ namespace {
 
             // loop north
             while ((currPieceMask << 8) & ~board.occupancy[board.sideToMove]) {
-                int toSquare = fromSquare - 8;
+                int toSquare = fromSquare + 8;
                 if (currPieceMask & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
                     Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                     Move move(fromSquare, toSquare, piece, captured);
@@ -478,7 +478,7 @@ namespace {
 
             // loop east 
             while (((currPieceMask >> 1) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
-                int toSquare = fromSquare - 9;
+                int toSquare = fromSquare - 1;
                 if (currPieceMask & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
                     Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                     Move move(fromSquare, toSquare, piece, captured);
@@ -542,7 +542,7 @@ namespace {
 
             // loop west 
             while (((currPieceMask << 1) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
-                int toSquare = fromSquare - 9;
+                int toSquare = fromSquare + 1;
                 if (currPieceMask & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
                     Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
                     Move move(fromSquare, toSquare, piece, captured);
@@ -666,7 +666,7 @@ namespace {
         U64 kingMask = board.pieces[board.sideToMove][KING];
 
         int fromSquare = getLSB(kingMask);
-        
+
         // north west
         if (((kingMask << 9) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
             int toSquare = fromSquare + 9;
