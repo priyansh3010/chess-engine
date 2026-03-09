@@ -80,7 +80,7 @@ namespace {
         while (doublePush) {
             int toSquare = getLSB(doublePush);
             int fromSquare = toSquare - 16;
-            Move move(fromSquare, toSquare, PAWN, NONE, NONE, false, true);
+            Move move(fromSquare, toSquare, PAWN);
             moveList.push_back(move); // add to move list
 
             doublePush &= doublePush - 1; // move onto next least significant bit
@@ -154,12 +154,12 @@ namespace {
 
         // check for en passant moves
         if (board.enPassantSquare != -1) {   
-            if ((board.pieces[WHITE][PAWN] & ~MASK_H_FILE) << 7 & (1ULL << board.enPassantSquare)) {
+            if ((board.pieces[WHITE][PAWN] & ~MASK_A_FILE) << 7 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare - 7, board.enPassantSquare, PAWN, PAWN);
                 moveList.push_back(move);
             }
             
-            if ((board.pieces[WHITE][PAWN] & ~MASK_A_FILE) << 9 & (1ULL << board.enPassantSquare)) {
+            if ((board.pieces[WHITE][PAWN] & ~MASK_H_FILE) << 9 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare - 9, board.enPassantSquare, PAWN, PAWN);
                 moveList.push_back(move);
             }
@@ -215,7 +215,7 @@ namespace {
         while (doublePush) {
             int toSquare = getLSB(doublePush);
             int fromSquare = toSquare + 16;
-            Move move(fromSquare, toSquare, PAWN, NONE, NONE, false, true);
+            Move move(fromSquare, toSquare, PAWN);
             moveList.push_back(move); // add to move list
 
             doublePush &= doublePush - 1; // move onto next least significant bit
@@ -289,12 +289,12 @@ namespace {
 
         // check for en passant moves
         if (board.enPassantSquare != -1) {   
-            if ((board.pieces[WHITE][PAWN] & ~MASK_H_FILE) >> 7 & (1ULL << board.enPassantSquare)) {
+            if ((board.pieces[BLACK][PAWN] & ~MASK_H_FILE) >> 7 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare + 7, board.enPassantSquare, PAWN, PAWN);
                 moveList.push_back(move);
             }
             
-            if ((board.pieces[WHITE][PAWN] & ~MASK_A_FILE) >> 9 & (1ULL << board.enPassantSquare)) {
+            if ((board.pieces[BLACK][PAWN] & ~MASK_A_FILE) >> 9 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare + 9, board.enPassantSquare, PAWN, PAWN);
                 moveList.push_back(move);
             }
