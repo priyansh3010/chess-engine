@@ -730,14 +730,14 @@ namespace {
             // queenside castling
             if (board.castlingRights & 0b1000) {
                 if (~board.occupancy[ALL] & 0x000000000000000C) {
-                    Move move(fromSquare, fromSquare - 2, KING, NONE, NONE, true);
+                    Move move(fromSquare, fromSquare + 2, KING, NONE, NONE, true);
                     moveList.push_back(move);
                 }
             }
             // kingside castling
             if (board.castlingRights & 0b0100) {
                 if (~board.occupancy[ALL] & 0x0000000000000060) {
-                    Move move(fromSquare, fromSquare + 2, KING, NONE, NONE, true);
+                    Move move(fromSquare, fromSquare - 2, KING, NONE, NONE, true);
                     moveList.push_back(move);
                 }
             }
@@ -747,14 +747,14 @@ namespace {
             // queenside castling
             if (board.castlingRights & 0b0010) {
                 if (~board.occupancy[ALL] & 0x0C00000000000000) {
-                    Move move(fromSquare, fromSquare - 2, KING, NONE, NONE, true);
+                    Move move(fromSquare, fromSquare + 2, KING, NONE, NONE, true);
                     moveList.push_back(move);
                 }
             }
             // kingside castling
             if (board.castlingRights & 0b0001) {
                 if (~board.occupancy[ALL] & 0x6000000000000000) {
-                    Move move(fromSquare, fromSquare + 2, KING, NONE, NONE, true);
+                    Move move(fromSquare, fromSquare - 2, KING, NONE, NONE, true);
                     moveList.push_back(move);
                 }
             }
