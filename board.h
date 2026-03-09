@@ -1,5 +1,7 @@
 #pragma once
 #include "types.h"
+#include "move.h"
+#include "moveinfo.h"
 
 struct Board {
     U64 pieces[2][6]; // one for all different types of pieces for black and white
@@ -14,4 +16,5 @@ struct Board {
     void init();
     void printBoard();
     Piece getPieceAt(Color color, int square) const;
+    MoveInfo makeMove(Move move);
 };

@@ -1,5 +1,8 @@
 #include <iostream>
+#include <cmath>
 #include "board.h"
+#include "move.h"
+#include "moveinfo.h"
 using namespace std;
 
 void Board::init() {
@@ -75,4 +78,94 @@ Piece Board::getPieceAt(Color color, int square) const {
             return static_cast<Piece>(pt);
     }
     return NONE;
+}
+
+MoveInfo Board::makeMove(Move move) {
+    MoveInfo moveInfo(move, enPassantSquare, castlingRights, halfMoveClock, fullMoveNumber);
+    // basic captures and en passant moves
+    if (move.promotionPiece == NONE && move.isCastle){
+        pieces[sideToMove][move.pieceType] ^= (1ULL << move.fromSquare);
+        pieces[sideToMove][move.pieceType] ^= (1ULL << move.toSquare);
+
+        // checks if move was double pawn push
+        if (move.pieceType == PAWN && abs(move.fromSquare - move.toSquare) == 16) {
+            enPassantSquare = sideToMove == WHITE ? move.toSquare - 8 : move.toSquare + 8;
+        }
+        // special conditions if move was enpassant
+        else if (move.capturedPiece == PAWN && move.isEnPassant) {
+            if (sideToMove == WHITE) {
+                pieces[BLACK][PAWN] ^= (1ULL - (move.toSquare - 8));
+                halfMoveClock = 0;
+                enPassantSquare = -1;
+            }
+            if (sideToMove == BLACK) {
+                pieces[WHITE][PAWN] ^= (1ULL - (move.toSquare + 8));
+                halfMoveClock = 0;
+            }
+        }
+        // checks if normal capture took place
+        else if (move.capturedPiece != NONE) {
+            pieces[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece] ^= (1ULL << move.toSquare);
+            halfMoveClock = 0;
+        }
+
+        // update castling rights if necessary
+        if (move.pieceType == ROOK) {
+            if (sideToMove == WHITE) {
+                if (move.fromSquare == 0) {
+                    if (castlingRights & 0b0100) castlingRights ^= 0b0100;
+                }
+                else if (move.fromSquare == 7) {
+                    if (castlingRights & 0b1000) castlingRights ^= 0b1000;
+                }
+            }
+            else {
+                if (move.fromSquare == 56) {
+                    if (castlingRights & 0b0001) castlingRights ^= 0b0001;
+                }
+                else if (move.fromSquare == 63) {
+                    if (castlingRights & 0b0010) castlingRights ^= 0b0010;
+                }
+            }
+        }
+        else if (move.pieceType == KING) {
+            if (sideToMove == WHITE) castlingRights &= 0b0011;
+            else castlingRights &= 0b1100;
+        }
+    }
+    // promotion move
+    else if (move.promotionPiece != NONE) {
+        pieces[sideToMove][PAWN] ^= (1ULL << move.fromSquare); // removes pawn from bitboard
+        pieces[sideToMove][move.promotionPiece] ^= (1ULL << move.toSquare); // adds promoted pieces to appropriate bitboard
+
+        // removes captured piece from appropriate bitboard
+        if (move.capturedPiece != NONE) {
+            pieces[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece] ^= (1ULL << move.toSquare);
+        }
+    }
+    // castling moves
+    else if (move.isCastle) {
+        if (move.toSquare > move.fromSquare) {
+            // move rook to correct spot
+            pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare + 3);
+            pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare + 1);
+        }
+        else {
+            // move rook to correct spot
+            pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 4);
+            pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 1);
+        }
+        // move king to correct spot
+        pieces[sideToMove][KING] ^= (1ULL << move.fromSquare);
+        pieces[sideToMove][KING] ^= (1ULL << move.toSquare);
+    }
+
+    // halfMoveClock update
+    if (move.pieceType == PAWN || move.capturedPiece != NONE) halfMoveClock = 0;
+    else halfMoveClock++;
+
+    // fullMove update
+    if (sideToMove == BLACK) fullMoveNumber++;
+
+    return moveInfo;
 }
