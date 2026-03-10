@@ -8,9 +8,10 @@ struct MoveInfo {
     int prevCastling;
     int prevHalfMoveClock;
     int prevFullMoveNumber;
+    Color prevColor;
 
     MoveInfo(Move m, int prevEnPassant, int prevCastling, int prevHalfMove, 
-         int prevFullMove)
+         int prevFullMove, Color color)
         : move(m), prevEnPassantSquare(prevEnPassant), prevCastling(prevCastling),
-          prevHalfMoveClock(prevHalfMove), prevFullMoveNumber(prevFullMove) {}
+          prevHalfMoveClock(prevHalfMove), prevFullMoveNumber(prevFullMove), prevColor(color) {}
 };
