@@ -93,7 +93,7 @@ Piece Board::getPieceAt(Color color, int square) const {
 }
 
 MoveInfo Board::makeMove(Move move) {
-    MoveInfo moveInfo(move, enPassantSquare, castlingRights, halfMoveClock, fullMoveNumber);
+    MoveInfo moveInfo(move, enPassantSquare, castlingRights, halfMoveClock, fullMoveNumber, sideToMove);
     // basic captures and en passant moves
     if (move.promotionPiece == NONE && move.isCastle){
         pieces[sideToMove][move.pieceType] ^= (1ULL << move.fromSquare);
@@ -183,6 +183,59 @@ MoveInfo Board::makeMove(Move move) {
     // fullMove update
     if (sideToMove == BLACK) fullMoveNumber++;
 
+    sideToMove = sideToMove == WHITE ? BLACK : WHITE;
+
     updateOccupancyBoards(*this);
     return moveInfo;
+}
+
+void Board::unMakeMove(MoveInfo moveInfo) {
+    Move move = moveInfo.move;
+
+    // move piece back to previous standing place
+    pieces[moveInfo.prevColor][move.pieceType] ^= (1ULL << move.toSquare);
+    pieces[moveInfo.prevColor][move.pieceType] ^= (1ULL << move.fromSquare);
+
+    // check if castle
+    if (move.isCastle) {
+        if (move.toSquare > move.fromSquare) {
+            // move rook to back to original spot
+            pieces[moveInfo.prevColor][ROOK] ^= (1ULL << move.fromSquare + 1);
+            pieces[moveInfo.prevColor][ROOK] ^= (1ULL << move.fromSquare + 3);
+        }
+        else {
+            // move rook to back to original spot
+            pieces[moveInfo.prevColor][ROOK] ^= (1ULL << move.fromSquare - 1);
+            pieces[moveInfo.prevColor][ROOK] ^= (1ULL << move.fromSquare - 4);
+        }
+    }
+    // check if promotion
+    else if (move.promotionPiece != NONE) {
+        pieces[moveInfo.prevColor][PAWN] ^= (1ULL << move.toSquare); // undo the accidental creation of pawn above in the function
+        pieces[moveInfo.prevColor][move.promotionPiece] ^= (1ULL << move.toSquare); // remove promoted piece
+    }
+    else if (move.isEnPassant) {
+        // if captured pawn was white
+        if (sideToMove == WHITE) {
+            pieces[WHITE][PAWN] ^= (1ULL << (moveInfo.prevEnPassantSquare + 8));
+        }
+        // if captured pawn was black
+        else {
+            pieces[BLACK][PAWN] ^= (1ULL << (moveInfo.prevEnPassantSquare - 8));
+        }
+    }
+    // all normal captures
+    else if (move.capturedPiece != NONE) {
+        pieces[sideToMove][move.capturedPiece] ^= (1ULL << move.toSquare);
+    }
+
+    // reset all variables to previous state
+    sideToMove = moveInfo.prevColor;
+    enPassantSquare = moveInfo.prevEnPassantSquare;
+    castlingRights = moveInfo.prevCastling;
+    halfMoveClock = moveInfo.prevHalfMoveClock;
+    fullMoveNumber = moveInfo.prevFullMoveNumber;
+
+    // update all occupancy boards
+    updateOccupancyBoards(*this);
 }
