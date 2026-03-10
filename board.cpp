@@ -14,6 +14,8 @@ namespace {
         board.occupancy[BLACK] = board.pieces[BLACK][ROOK] | board.pieces[BLACK][KNIGHT]
                                 | board.pieces[BLACK][BISHOP] | board.pieces[BLACK][KING]
                                 | board.pieces[BLACK][QUEEN] | board.pieces[BLACK][PAWN];
+
+        board.occupancy[ALL] = board.occupancy[WHITE] | board.occupancy[BLACK];
     }
 }
 
