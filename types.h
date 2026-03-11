@@ -29,7 +29,7 @@ inline int getLSB(U64 bitboard) {
     return (int)index;
 }
 
-const U64 MASK_A_FILE = 0x0101010101010101ULL; // A file mask
-const U64 MASK_H_FILE = 0x8080808080808080ULL; // H file mask
-const U64 MASK_A_B_FILE = 0x0303030303030303ULL; // A and B file mask
-const U64 MASK_G_H_FILE = 0xC0C0C0C0C0C0C0C0ULL; // G and H file mask
+const U64 MASK_A_FILE = 0x0101010101010101ULL; // A file mask | 00000001
+const U64 MASK_H_FILE = 0x8080808080808080ULL; // H file mask | 10000000
+const U64 MASK_A_B_FILE = 0x0303030303030303ULL; // A and B file mask | 00000011
+const U64 MASK_G_H_FILE = 0xC0C0C0C0C0C0C0C0ULL; // G and H file mask | 11000000
