@@ -1,5 +1,7 @@
 #include <iostream>
 #include <cmath>
+#include <sstream>
+#include <string>
 #include "board.h"
 #include "move.h"
 #include "movegen.h"
@@ -20,42 +22,113 @@ namespace {
     }
 }
 
-void Board::init() {
-    // Setting white pieces
-    pieces[WHITE][ROOK] = (1ULL << a1) | (1ULL << h1);
-    pieces[WHITE][KNIGHT] = (1ULL << b1) | (1ULL << g1);
-    pieces[WHITE][BISHOP] = (1ULL << c1) | (1ULL << f1);
-    pieces[WHITE][KING] = (1ULL << e1);
-    pieces[WHITE][QUEEN] = (1ULL << d1);
-    pieces[WHITE][PAWN] = (1ULL << a2) | (1ULL << b2) | (1ULL << c2) | (1ULL << d2)
-                        | (1ULL << e2) | (1ULL << f2) | (1ULL << g2) | (1ULL << h2);
-                     
-    // Setting black pieces
-    pieces[BLACK][ROOK] = (1ULL << a8) | (1ULL << h8);
-    pieces[BLACK][KNIGHT] = (1ULL << b8) | (1ULL << g8);
-    pieces[BLACK][BISHOP] = (1ULL << c8) | (1ULL << f8);
-    pieces[BLACK][KING] = (1ULL << e8);
-    pieces[BLACK][QUEEN] = (1ULL << d8);
-    pieces[BLACK][PAWN] = (1ULL << a7) | (1ULL << b7) | (1ULL << c7) | (1ULL << d7)
-                        | (1ULL << e7) | (1ULL << f7) | (1ULL << g7) | (1ULL << h7);
+void Board::loadFEN(string FEN) {
+    // zero everything out first
+    memset(pieces, 0, sizeof(pieces));
+    memset(occupancy, 0, sizeof(occupancy));
 
-    // Setting occupancy bttboards
-    occupancy[WHITE] = pieces[WHITE][ROOK] | pieces[WHITE][KNIGHT]
-                     | pieces[WHITE][BISHOP] | pieces[WHITE][KING]
-                     | pieces[WHITE][QUEEN] | pieces[WHITE][PAWN];
+    vector<string> tokens;
+    string token;
+    istringstream ss(FEN);
+    while (getline(ss, token, ' ')) {
+        tokens.push_back(token);
+    }
 
-    occupancy[BLACK] = pieces[BLACK][ROOK] | pieces[BLACK][KNIGHT]
-                    | pieces[BLACK][BISHOP] | pieces[BLACK][KING]
-                    | pieces[BLACK][QUEEN] | pieces[BLACK][PAWN];
-    
-    occupancy[ALL] = occupancy[BLACK] | occupancy[WHITE];
+    int currSquare = 56;
 
-    // initialising other variables
-    sideToMove = WHITE;
-    castlingRights = 0b1111; // first 2 bits for white castling, last 2 for black castling
-    enPassantSquare = -1;
-    halfMoveClock = 0;
-    fullMoveNumber = 1;
+    // load chess pieces
+    for (char c : tokens[0]) {
+        if (isdigit(static_cast<unsigned char>(c))) {
+            currSquare += (c - '0');
+        }
+        else if (c == '/') currSquare -= 16;
+        else {
+            if (c >= 'a' && c <= 'z') {
+                if (c == 'r') {
+                    pieces[BLACK][ROOK] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'n') {
+                    pieces[BLACK][KNIGHT] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'b') {
+                    pieces[BLACK][BISHOP] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'q') {
+                    pieces[BLACK][QUEEN] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'k') {
+                    pieces[BLACK][KING] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'p') {
+                    pieces[BLACK][PAWN] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+            }
+            else {
+                if (c == 'R') {
+                    pieces[WHITE][ROOK] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'N') {
+                    pieces[WHITE][KNIGHT] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'B') {
+                    pieces[WHITE][BISHOP] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'Q') {
+                    pieces[WHITE][QUEEN] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'K') {
+                    pieces[WHITE][KING] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+                else if (c == 'P') {
+                    pieces[WHITE][PAWN] ^= (1ULL << currSquare);
+                    currSquare++;
+                }
+            }
+        }
+    }
+
+    updateOccupancyBoards(*this);
+
+    // set side to move
+    sideToMove = tokens[1] == "w" ? WHITE : BLACK;
+
+    // sets castling
+    castlingRights = 0b0000;
+    for (char c : tokens[2]) {
+        if (c == 'Q') castlingRights ^= 0b1000;
+        else if (c == 'K') castlingRights ^= 0b0100;
+        else if (c == 'q') castlingRights ^= 0b0010;
+        else if (c == 'k') castlingRights ^= 0b0001;
+    }
+
+    // sets en-passant square
+    if (tokens[3] != "-") {
+        int file = tokens[3][0] - 'a';
+        int rank = tokens[3][1] - '1';
+        enPassantSquare = rank * 8 + file;
+    }
+    else enPassantSquare = -1;
+
+    // set half move clock
+    halfMoveClock = stoi(tokens[4]);
+
+    // set full move number
+    fullMoveNumber = stoi(tokens[5]);
+}
+
+void Board::init(string FEN) {
+    loadFEN(FEN);
 
     // pre-compute knight moves
     MoveGen::init();
@@ -100,11 +173,14 @@ Piece Board::getPieceAt(Color color, int square) const {
 
 MoveInfo Board::makeMove(Move move) {
     MoveInfo moveInfo(move, enPassantSquare, castlingRights, halfMoveClock, fullMoveNumber, sideToMove);
+    
+    enPassantSquare = -1; // update enPassant
+    
     // basic captures and en passant moves
-    if (move.promotionPiece == NONE && move.isCastle){
+    if (move.promotionPiece == NONE && !move.isCastle){
         pieces[sideToMove][move.pieceType] ^= (1ULL << move.fromSquare);
         pieces[sideToMove][move.pieceType] ^= (1ULL << move.toSquare);
-
+        
         // checks if move was double pawn push
         if (move.pieceType == PAWN && abs(move.fromSquare - move.toSquare) == 16) {
             enPassantSquare = sideToMove == WHITE ? move.toSquare - 8 : move.toSquare + 8;
@@ -112,21 +188,39 @@ MoveInfo Board::makeMove(Move move) {
         // special conditions if move was enpassant
         else if (move.capturedPiece == PAWN && move.isEnPassant) {
             if (sideToMove == WHITE) {
-                pieces[BLACK][PAWN] ^= (1ULL - (move.toSquare - 8));
-                halfMoveClock = 0;
-                enPassantSquare = -1;
+                pieces[BLACK][PAWN] ^= (1ULL << (move.toSquare - 8));
             }
             if (sideToMove == BLACK) {
-                pieces[WHITE][PAWN] ^= (1ULL - (move.toSquare + 8));
-                halfMoveClock = 0;
+                pieces[WHITE][PAWN] ^= (1ULL << (move.toSquare + 8));
             }
+            halfMoveClock = 0;
         }
         // checks if normal capture took place
         else if (move.capturedPiece != NONE) {
             pieces[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece] ^= (1ULL << move.toSquare);
             halfMoveClock = 0;
-        }
 
+            // update castling rights if captured piece was rook
+            if (move.capturedPiece == ROOK) {
+                if (sideToMove == BLACK) {
+                    if (move.toSquare == 0) {
+                        if (castlingRights & 0b0100) castlingRights ^= 0b0100;
+                    }
+                    else if (move.toSquare == 7) {
+                        if (castlingRights & 0b1000) castlingRights ^= 0b1000;
+                    }
+                }
+                else {
+                    if (move.toSquare == 56) {
+                        if (castlingRights & 0b0001) castlingRights ^= 0b0001;
+                    }
+                    else if (move.toSquare == 63) {
+                        if (castlingRights & 0b0010) castlingRights ^= 0b0010;
+                    }
+                }
+            }
+        }
+        
         // update castling rights if necessary
         if (move.pieceType == ROOK) {
             if (sideToMove == WHITE) {
@@ -155,7 +249,7 @@ MoveInfo Board::makeMove(Move move) {
     else if (move.promotionPiece != NONE) {
         pieces[sideToMove][PAWN] ^= (1ULL << move.fromSquare); // removes pawn from bitboard
         pieces[sideToMove][move.promotionPiece] ^= (1ULL << move.toSquare); // adds promoted pieces to appropriate bitboard
-
+        
         // removes captured piece from appropriate bitboard
         if (move.capturedPiece != NONE) {
             pieces[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece] ^= (1ULL << move.toSquare);
@@ -167,16 +261,14 @@ MoveInfo Board::makeMove(Move move) {
             // move rook to correct spot
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare + 3);
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare + 1);
-            if (sideToMove == WHITE) castlingRights ^= 0b1000;
-            if (sideToMove == BLACK) castlingRights ^= 0b0010;
         }
         else {
             // move rook to correct spot
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 4);
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 1);
-            if (sideToMove == WHITE) castlingRights ^= 0b0100;
-            if (sideToMove == BLACK) castlingRights ^= 0b0001;
         }
+        if (sideToMove == WHITE) castlingRights ^= 0b1100;
+        if (sideToMove == BLACK) castlingRights ^= 0b0011;
         // move king to correct spot
         pieces[sideToMove][KING] ^= (1ULL << move.fromSquare);
         pieces[sideToMove][KING] ^= (1ULL << move.toSquare);
@@ -231,7 +323,7 @@ void Board::unMakeMove(MoveInfo moveInfo) {
         }
     }
     // all normal captures
-    else if (move.capturedPiece != NONE) {
+    if (move.capturedPiece != NONE && !move.isEnPassant) {
         pieces[sideToMove][move.capturedPiece] ^= (1ULL << move.toSquare);
     }
 
@@ -256,3 +348,14 @@ bool Board::isKingInCheck() {
 
     return false;
 } 
+
+bool Board::isSquareAttacked(int toSquare) {
+    vector<Move> allMoves = MoveGen::generateAllMoves(*this);
+
+    for (Move move : allMoves) {
+        if (move.toSquare == toSquare) 
+            return true;
+    }
+
+    return false;
+}
