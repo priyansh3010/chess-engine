@@ -23,7 +23,7 @@ U64 perft(Board& board, int depth) {
     return nodes;
 }
 
-void perftDivide(Board& board, int depth) {
+int perftDivide(Board& board, int depth) {
     vector<Move> moves = MoveGen::generateLegalMoves(board);
     
     char files[] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
@@ -47,4 +47,5 @@ void perftDivide(Board& board, int depth) {
         total += count;
     }
     cout << "\nTotal: " << total << endl;
+    return total;
 }

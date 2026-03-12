@@ -9,4 +9,4 @@
 #include "types.h"
 
 U64 perft(Board& board, int depth);
-void perftDivide(Board& board, int depth);
+int perftDivide(Board& board, int depth);
