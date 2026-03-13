@@ -6,6 +6,7 @@
 #include "moveinfo.h"
 #include "movegen.h"
 #include "types.h"
+#include "utils.h"
 using namespace std;
 
 
@@ -32,17 +33,10 @@ int perftDivide(Board& board, int depth) {
     uint64_t total = 0;
     for (auto& move : moves) {
         MoveInfo moveInfo = board.makeMove(move);
-        uint64_t count = perft(board, depth - 1);  // depth - 1, not depth
+        uint64_t count = perft(board, depth - 1); 
         board.unMakeMove(moveInfo);
 
-        cout << files[move.fromSquare % 8] << ranks[move.fromSquare / 8]
-        << files[move.toSquare % 8] << ranks[move.toSquare / 8];
-        if (move.promotionPiece != NONE) {
-            if (move.promotionPiece == QUEEN) cout << "q";
-            else if (move.promotionPiece == ROOK) cout << "r";
-            else if (move.promotionPiece == BISHOP) cout << "b";
-            else if (move.promotionPiece == KNIGHT) cout << "n";
-        }
+        cout << utils::moveToString(move);
         cout << ": " << count << endl;
         total += count;
     }
