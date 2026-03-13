@@ -712,7 +712,7 @@ namespace MoveGen {
         
         vector<Move> legalMoves;
         legalMoves.reserve(moves.size());
-        for (Move move : moves) {
+        for (const Move& move : moves) {
             MoveInfo moveInfo = board.makeMove(move);
             if (!board.isKingInCheck()) {
                 if (move.isCastle && canCastle) {
