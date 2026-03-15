@@ -618,62 +618,18 @@ namespace {
 
         int fromSquare = getLSB(kingMask);
 
-        // north west
-        if ((((kingMask & ~MASK_H_FILE) << 9)) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare + 9;
+        // loop through all normal king moves from curr square
+        U64 kingAttack = kingAttacks[fromSquare] & ~board.occupancy[board.sideToMove];
+        while (kingAttack) {
+            int toSquare = getLSB(kingAttack);
             Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
             Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
+            moveList.push_back(move);    
+
+            kingAttack &= kingAttack - 1;
         }
-        // north
-        if ((kingMask << 8) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare + 8;
-            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
-        }
-        // north east
-        if ((((kingMask & ~MASK_A_FILE) << 7)) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare + 7;
-            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
-        }
-        // east
-        if ((((kingMask & ~MASK_A_FILE) >> 1)) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare - 1;
-            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
-        }
-        // south east
-        if (((kingMask & ~MASK_A_FILE) >> 9) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare - 9;
-            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
-        }
-        // south
-        if ((kingMask >> 8) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare - 8;
-            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
-        }
-        // south west
-        if (((kingMask & ~MASK_H_FILE) >> 7) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare - 7;
-            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
-        }
-        // west
-        if (((kingMask & ~MASK_H_FILE) << 1) & ~board.occupancy[board.sideToMove]) {
-            int toSquare = fromSquare + 1;
-            Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);
-        }
+
+        // castling moves
 
         // white castling
         if (board.sideToMove == WHITE) {
@@ -716,6 +672,7 @@ namespace MoveGen {
 
     void MoveGen::init() {
         preComputeKnightMoves();
+        preComputeKingMoves();
     }
 
     vector<Move> generateAllMoves(Board& board) {
