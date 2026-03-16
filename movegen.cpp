@@ -9,7 +9,24 @@
 #include "types.h"
 using namespace std;
 
-// generate all pieces attack tables
+// defines direction struct for sliding piece movegen
+namespace {
+    const MoveGen::Direction DIAG_DIRS[4] = {
+        { +9, ~MASK_A_FILE }, // north west
+        { +7, ~MASK_H_FILE }, // north east
+        { -9, ~MASK_H_FILE }, // south east
+        { -7, ~MASK_A_FILE }  // south west
+    };
+    
+    const MoveGen::Direction STRAIGHT_DIRS[4] = {
+        { +8, ~0ULL },        // north
+        { -8, ~0ULL },        // south 
+        { +1, ~MASK_A_FILE }, // west
+        { -1, ~MASK_H_FILE }  // east
+    };
+}   
+
+// precompute king and knight pieces attack tables
 namespace {
     U64 knightAttacks[64];
     U64 bishopAttacks[64];
@@ -60,8 +77,8 @@ namespace {
     }
 }
 
+// Pawn and sliding pieces move functions
 namespace {
-    // Pawn move functions
     void wPawnSinglePush(const Board& board, vector<Move>& moveList) {
         U64 emptySquares = ~board.occupancy[ALL];
         U64 rank7Mask = 0x00FF000000000000ULL; // Will highlight all pawns on 7th rank
@@ -309,266 +326,33 @@ namespace {
             }
         }
     }
-    // diagonal sliding move functions
-    // direction is based on the orientation of bitboards defined in comments in types.h
-    void northWestSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
+    void generateSlidingMoves(const Board& board, Piece piece, const MoveGen::Direction* dirs, vector<Move>& moveList) {
+        Color enemy = board.sideToMove == WHITE ? BLACK : WHITE;
+        U64 currColorPieces = board.pieces[board.sideToMove][piece];
 
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
+        // loop through all specified piece of the player
+        while (currColorPieces) {
+            int fromSquare = getLSB(currColorPieces);
 
-            U64 currPieceMask = 1ULL << fromSquare;
+            // get all possible attack squares of the one piece
+            U64 currAttacks = MoveGen::getRays(fromSquare, board.occupancy[board.sideToMove], board.occupancy[enemy], dirs);
 
-            int toSquare = fromSquare;
-            // loop north west 
-            while (((currPieceMask << 9) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
-                toSquare += 9;
-                if ((currPieceMask << 9) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask <<= 9;
+            // go through each attack and create a move
+            while (currAttacks) {
+                int toSquare = getLSB(currAttacks);
+                Piece captured = board.getPieceAt(enemy, toSquare);
+                Move move(fromSquare, toSquare, piece, captured);
+                moveList.push_back(move);
+
+                currAttacks &= currAttacks - 1;
             }
 
-            pieces &= pieces - 1;
+            currColorPieces &= currColorPieces - 1;
         }
     }
-    void northEastSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
-
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
-
-            U64 currPieceMask = 1ULL << fromSquare;
-
-            int toSquare = fromSquare;
-            // loop north east 
-            while (((currPieceMask << 7) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
-                toSquare += 7;
-                if ((currPieceMask << 7) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask <<= 7;
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
-    void southEastSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
-
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
-
-            U64 currPieceMask = 1ULL << fromSquare;
-
-            int toSquare = fromSquare;
-            // loop south east 
-            while (((currPieceMask >> 9) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
-                toSquare -= 9;
-                if ((currPieceMask >> 9) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask >>= 9;
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
-    void southWestSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
-
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
-
-            U64 currPieceMask = 1ULL << fromSquare;
-
-            int toSquare = fromSquare;
-            // loop south west 
-            while (((currPieceMask >> 7) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
-                toSquare -= 7;
-                if ((currPieceMask >> 7) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask >>= 7;
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
-    // straight sliding move functions
-    // direction is based on the orientation of bitboards defined in comments in types.h
-    void northSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
-
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
-
-            U64 currPieceMask = 1ULL << fromSquare;
-
-            int toSquare = fromSquare;
-            // loop north
-            while ((currPieceMask << 8) & ~board.occupancy[board.sideToMove]) {
-                toSquare += 8;
-                if ((currPieceMask << 8) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask <<= 8;
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
-    void eastSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
-
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
-
-            U64 currPieceMask = 1ULL << fromSquare;
-
-            int toSquare = fromSquare;
-            // loop east 
-            while (((currPieceMask >> 1) & ~MASK_H_FILE) & ~board.occupancy[board.sideToMove]) {
-                toSquare -= 1;
-                if ((currPieceMask >> 1) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask >>= 1;
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
-    void southSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
-
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
-
-            U64 currPieceMask = 1ULL << fromSquare;
-
-            int toSquare = fromSquare;
-            // loop south
-            while ((currPieceMask >> 8) & ~board.occupancy[board.sideToMove]) {
-                toSquare -= 8;
-                if ((currPieceMask >> 8) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask >>= 8;
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
-    void westSliding(const Board& board, Piece piece, vector<Move>& moveList) {
-        U64 pieces = board.pieces[board.sideToMove][piece];
-
-        // loop through each of the pieces on bitboard
-        while (pieces) {
-            int fromSquare = getLSB(pieces);
-
-            U64 currPieceMask = 1ULL << fromSquare;
-
-            int toSquare = fromSquare;
-            // loop west 
-            while (((currPieceMask << 1) & ~MASK_A_FILE) & ~board.occupancy[board.sideToMove]) {
-                toSquare += 1;
-                if ((currPieceMask << 1) & board.occupancy[board.sideToMove == WHITE ? BLACK : WHITE]) {
-                    Piece captured = board.getPieceAt(board.sideToMove == WHITE ? BLACK : WHITE, toSquare);
-                    Move move(fromSquare, toSquare, piece, captured);
-                    moveList.push_back(move);
-                    break; // stop generating moves once, and only if, an opponent piece is reached
-                }
-                else {
-                    Move move(fromSquare, toSquare, piece);
-                    moveList.push_back(move);
-                }
-                
-                currPieceMask <<= 1;
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
-    // individual move type functions, calling above defined functions
-    void generateDiagonalSlidingMoves(const Board& board, Piece piece, vector<Move>& moveList) {
-        // generate all diagonal moves
-        northWestSliding(board, piece, moveList); 
-        northEastSliding(board, piece, moveList);
-        southEastSliding(board, piece, moveList);
-        southWestSliding(board, piece, moveList);
-    }
-    void generateStraightSlidingMoves(const Board& board, Piece piece, vector<Move>& moveList) {
-        // generate all diagonal moves
-        northSliding(board, piece, moveList); 
-        eastSliding(board, piece, moveList);
-        southSliding(board, piece, moveList);
-        westSliding(board, piece, moveList);
-    }
-    // move generation function for each individual type of piece
+}
+// move generation function for each individual type of piece
+namespace {
     void generatePawnMoves(const Board& board, vector<Move>& moveList) {
 
         if (board.sideToMove == WHITE) {
@@ -604,14 +388,14 @@ namespace {
         }
     }
     void generateBishopMoves(const Board& board, vector<Move>& moveList) {
-        generateDiagonalSlidingMoves(board, BISHOP, moveList);
+        generateSlidingMoves(board, BISHOP, DIAG_DIRS, moveList);
     }
     void generateRookMoves(const Board& board, vector<Move>& moveList) {
-        generateStraightSlidingMoves(board, ROOK, moveList);
+        generateSlidingMoves(board, ROOK, STRAIGHT_DIRS, moveList);
     }
     void generateQueenMoves(const Board& board, vector<Move>& moveList) {
-        generateDiagonalSlidingMoves(board, QUEEN, moveList);
-        generateStraightSlidingMoves(board, QUEEN, moveList);
+        generateSlidingMoves(board, QUEEN, DIAG_DIRS, moveList);
+        generateSlidingMoves(board, QUEEN, STRAIGHT_DIRS, moveList);
     }
     void generateKingMoves(const Board& board, vector<Move>& moveList) {
         U64 kingMask = board.pieces[board.sideToMove][KING];
@@ -670,9 +454,27 @@ namespace {
 
 namespace MoveGen {
 
-    void MoveGen::init() {
+    void init() {
         preComputeKnightMoves();
         preComputeKingMoves();
+    }
+
+    U64 getRays(int fromSquare, U64 currPlayerPieces, U64 opponentPieces, const Direction* dirs) {
+        U64 attacks = 0;
+        
+        for (int i = 0; i < 4; i++) {
+            U64 currAttack = 1ULL << fromSquare;
+            currAttack = dirs[i].shift > 0 ? currAttack << dirs[i].shift : currAttack >> -dirs[i].shift;
+            while (currAttack & dirs[i].noWrap) {
+                
+                if (currAttack & currPlayerPieces) break;  // own piece, stop without adding
+                attacks |= currAttack;
+                if (currAttack & opponentPieces) break;    // enemy piece, add then stop
+                currAttack = dirs[i].shift > 0 ? currAttack << dirs[i].shift : currAttack >> -dirs[i].shift;
+            }
+        }
+
+        return attacks;
     }
 
     vector<Move> generateAllMoves(Board& board) {

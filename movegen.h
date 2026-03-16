@@ -8,7 +8,10 @@ using namespace std;
 
 namespace MoveGen {
 
+    struct Direction { int shift; U64 noWrap; };
+
     void init();
+    U64 getRays(int fromSquare, U64 currPlayerPieces, U64 opponentPieces, const Direction* dirs);
     vector<Move> generateAllMoves(Board& board);
     vector<Move> generateLegalMoves(Board& board);
 }
