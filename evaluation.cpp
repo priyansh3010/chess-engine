@@ -10,8 +10,8 @@
 #include "uci.h"
 using namespace std;
 
-namespace Evaluation {
-    int evaluate(Board& board) {
+namespace {
+    int countMaterial(Board& board) {
         // simple evaluation function to count all pieces
         int currEval = 0;
 
@@ -46,5 +46,11 @@ namespace Evaluation {
         }
 
         return currEval;
+    }
+}
+
+namespace Evaluation {
+    int evaluate(Board& board) {
+        return countMaterial(board);
     }
 }
