@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -8,6 +9,7 @@
 #include "movegen.h"
 #include "types.h"
 #include "utils.h"
+using namespace std;
 
 string utils::moveToString(Move move) {
     string files[] = {"a", "b", "c", "d", "e", "f", "g", "h"};
@@ -60,4 +62,11 @@ Move utils::stringToMove(Board& board, string moveStr) {
     }
 
     return Move{}; // null move if not found
+}
+
+bool utils::isTimeUp(int& searchAllocatedMS, std::chrono::steady_clock::time_point searchStartTime) {
+    auto elapsed = chrono::duration_cast<chrono::milliseconds>(
+        chrono::steady_clock::now() - searchStartTime
+    ).count();
+    return elapsed >= searchAllocatedMS;
 }
