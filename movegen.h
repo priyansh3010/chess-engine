@@ -7,11 +7,11 @@
 using namespace std;
 
 namespace MoveGen {
-
-    struct Direction { int shift; U64 noWrap; };
+    extern U64 knightAttacks[64];
+    extern U64 kingAttacks[64];
 
     void init();
     U64 getRays(int fromSquare, U64 currPlayerPieces, U64 opponentPieces, const Direction* dirs);
-    vector<Move> generateAllMoves(Color currPlayer, Board& board);
-    vector<Move> generateLegalMoves(Board& board);
+    void generateAllMoves(Color currPlayer, Move* moveList, int& moveCount, Board& board);
+    void generateLegalMoves(Board& board, Move* legalMoves, int& legalMovesCount);
 }

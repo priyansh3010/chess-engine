@@ -9,31 +9,8 @@
 #include "types.h"
 using namespace std;
 
-// defines direction struct for sliding piece movegen
-namespace {
-    const MoveGen::Direction DIAG_DIRS[4] = {
-        { +9, ~MASK_A_FILE }, // north west
-        { +7, ~MASK_H_FILE }, // north east
-        { -9, ~MASK_H_FILE }, // south east
-        { -7, ~MASK_A_FILE }  // south west
-    };
-    
-    const MoveGen::Direction STRAIGHT_DIRS[4] = {
-        { +8, ~0ULL },        // north
-        { -8, ~0ULL },        // south 
-        { +1, ~MASK_A_FILE }, // west
-        { -1, ~MASK_H_FILE }  // east
-    };
-}   
-
 // precompute king and knight pieces attack tables
 namespace {
-    U64 knightAttacks[64];
-    U64 bishopAttacks[64];
-    U64 rookAttacks[64];
-    U64 queenAttacks[64];
-    U64 kingAttacks[64];
-
     // pre-compute knight moves
     // direction is based on the orientation of bitboards defined in comments in types.h
     void preComputeKnightMoves() {
@@ -51,7 +28,7 @@ namespace {
             U64 currMoveMap = northWestWest | northNorthWest | northNorthEast | northEastEast
             | southWestWest | southSouthWest | southSouthEast | southEastEast;
             
-            knightAttacks[i] = currMoveMap;
+            MoveGen::knightAttacks[i] = currMoveMap;
         }
     }
     
@@ -72,14 +49,14 @@ namespace {
             U64 currMoveMap = west | northWest | north | northEast
                             | east | southEast | south | southWest;
             
-            kingAttacks[i] = currMoveMap;
+            MoveGen::kingAttacks[i] = currMoveMap;
         }
     }
 }
 
 // Pawn and sliding pieces move functions
 namespace {
-    void wPawnSinglePush(const Board& board, vector<Move>& moveList) {
+    void wPawnSinglePush(const Board& board, Move* moveList, int& moveCount) {
         U64 emptySquares = ~board.occupancy[ALL];
         U64 rank7Mask = 0x00FF000000000000ULL; // Will highlight all pawns on 7th rank
 
@@ -93,7 +70,8 @@ namespace {
             int toSquare = getLSB(singlePush);
             int fromSquare = toSquare - 8;
             Move move(fromSquare, toSquare, PAWN);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
             
             singlePush &= singlePush - 1; // move onto next least significant bit
         }
@@ -104,15 +82,19 @@ namespace {
             int fromSquare = toSquare - 8;
             
             // All 4 promotions
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, QUEEN));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, ROOK)); 
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, BISHOP));             
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, KNIGHT)); 
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, QUEEN));
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, ROOK)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, BISHOP)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, KNIGHT)); 
+            moveCount++; 
             
             promoPawns &= promoPawns - 1;
         }
     }
-    void wPawnDoublePush(const Board& board, vector<Move>& moveList) {
+    void wPawnDoublePush(const Board& board, Move* moveList, int& moveCount) {
         U64 emptySquares = ~board.occupancy[ALL];
         U64 rank2Pawns = board.pieces[WHITE][PAWN] & 0x000000000000FF00ULL;
         U64 singlePush = (rank2Pawns << 8) & emptySquares;      // intermediate square must be empty
@@ -123,12 +105,13 @@ namespace {
             int toSquare = getLSB(doublePush);
             int fromSquare = toSquare - 16;
             Move move(fromSquare, toSquare, PAWN);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
 
             doublePush &= doublePush - 1; // move onto next least significant bit
         }
     }
-    void wPawnCapture(const Board& board, vector<Move>& moveList) {
+    void wPawnCapture(const Board& board, Move* moveList, int& moveCount) {
         U64 mask7Rank = 0x00FF000000000000ULL; // mask 7th rank
         U64 leftCaptures  = ((board.pieces[WHITE][PAWN] & ~mask7Rank) << 7) & board.occupancy[BLACK] & ~MASK_H_FILE;
         U64 rightCaptures = ((board.pieces[WHITE][PAWN] & ~mask7Rank) << 9) & board.occupancy[BLACK] & ~MASK_A_FILE;
@@ -143,7 +126,8 @@ namespace {
             
             Piece captured = board.getPieceAt(BLACK, toSquare);
             Move move(fromSquare, toSquare, PAWN, captured);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
 
             leftCaptures &= leftCaptures - 1; // move onto next least significant bit
         }
@@ -155,7 +139,8 @@ namespace {
             
             Piece captured = board.getPieceAt(BLACK, toSquare);
             Move move(fromSquare, toSquare, PAWN, captured);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
 
             rightCaptures &= rightCaptures - 1; // move onto next least significant bit
         }
@@ -167,10 +152,14 @@ namespace {
             
             Piece captured = board.getPieceAt(BLACK, toSquare);
 
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, ROOK)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, BISHOP)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, KNIGHT)); 
+            moveCount++; 
             
             leftPromoCaptures &= leftPromoCaptures - 1; // move onto next least significant bit
         }
@@ -182,10 +171,14 @@ namespace {
             
             Piece captured = board.getPieceAt(BLACK, toSquare);
 
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, ROOK)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, BISHOP)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, KNIGHT)); 
+            moveCount++; 
 
             rightPromoCaptures &= rightPromoCaptures - 1; // move onto next least significant bit
         }
@@ -194,16 +187,18 @@ namespace {
         if (board.enPassantSquare != -1) {   
             if ((board.pieces[WHITE][PAWN] & ~MASK_A_FILE) << 7 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare - 7, board.enPassantSquare, PAWN, PAWN, NONE, false, true);
-                moveList.push_back(move);
+                moveList[moveCount] = move; // add to move list
+                moveCount++;
             }
             
             if ((board.pieces[WHITE][PAWN] & ~MASK_H_FILE) << 9 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare - 9, board.enPassantSquare, PAWN, PAWN, NONE, false, true);
-                moveList.push_back(move);
+                moveList[moveCount] = move; // add to move list
+                moveCount++;
             }
         }
     }
-    void bPawnSinglePush(const Board& board, vector<Move>& moveList) {
+    void bPawnSinglePush(const Board& board, Move* moveList, int& moveCount) {
         U64 emptySquares = ~board.occupancy[ALL];
         U64 rank2Mask = 0x000000000000FF00ULL; // Will highlight all pawns on 2nd rank
 
@@ -217,7 +212,8 @@ namespace {
             int toSquare = getLSB(singlePush);
             int fromSquare = toSquare + 8;
             Move move(fromSquare, toSquare, PAWN);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
 
             singlePush &= singlePush - 1; // move onto next least significant bit
         }
@@ -227,15 +223,19 @@ namespace {
             int fromSquare = toSquare + 8;
             
             // All 4 promotions
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, QUEEN));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, ROOK));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, BISHOP));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, NONE, KNIGHT));
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, QUEEN));
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, ROOK)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, BISHOP)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, NONE, KNIGHT)); 
+            moveCount++; 
 
             promoPawns &= promoPawns - 1;
         }
     }
-    void bPawnDoublePush(const Board& board, vector<Move>& moveList) {
+    void bPawnDoublePush(const Board& board, Move* moveList, int& moveCount) {
         U64 emptySquares = ~board.occupancy[ALL];
         U64 rank7Pawns = board.pieces[BLACK][PAWN] & 0x00FF000000000000ULL;
         U64 singlePush = (rank7Pawns >> 8) & emptySquares;      // intermediate square must be empty
@@ -246,12 +246,13 @@ namespace {
             int toSquare = getLSB(doublePush);
             int fromSquare = toSquare + 16;
             Move move(fromSquare, toSquare, PAWN);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
 
             doublePush &= doublePush - 1; // move onto next least significant bit
         }
     }
-    void bPawnCapture(const Board& board, vector<Move>& moveList) {
+    void bPawnCapture(const Board& board, Move* moveList, int& moveCount) {
         U64 mask2Rank = 0x00000000000000FF00ULL; // mask 7th rank
         U64 leftCaptures  = ((board.pieces[BLACK][PAWN] & ~mask2Rank) >> 7) & board.occupancy[WHITE] & ~MASK_A_FILE;
         U64 rightCaptures = ((board.pieces[BLACK][PAWN] & ~mask2Rank) >> 9) & board.occupancy[WHITE] & ~MASK_H_FILE;
@@ -266,7 +267,8 @@ namespace {
             
             Piece captured = board.getPieceAt(WHITE, toSquare);
             Move move(fromSquare, toSquare, PAWN, captured);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
 
             leftCaptures &= leftCaptures - 1; // move onto next least significant bit
         }
@@ -278,7 +280,8 @@ namespace {
             
             Piece captured = board.getPieceAt(WHITE, toSquare);
             Move move(fromSquare, toSquare, PAWN, captured);
-            moveList.push_back(move); // add to move list
+            moveList[moveCount] = move; // add to move list
+            moveCount++;
 
             rightCaptures &= rightCaptures - 1; // move onto next least significant bit
         }
@@ -290,10 +293,14 @@ namespace {
             
             Piece captured = board.getPieceAt(WHITE, toSquare);
             
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, ROOK)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, BISHOP)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, KNIGHT)); 
+            moveCount++; 
             
             leftPromoCaptures &= leftPromoCaptures - 1; // move onto next least significant bit
         }
@@ -305,10 +312,14 @@ namespace {
             
             Piece captured = board.getPieceAt(WHITE, toSquare);
 
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, QUEEN));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, ROOK));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, BISHOP));
-            moveList.push_back(Move(fromSquare, toSquare, PAWN, captured, KNIGHT));
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, QUEEN));
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, ROOK)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, BISHOP)); 
+            moveCount++;
+            moveList[moveCount] = (Move(fromSquare, toSquare, PAWN, captured, KNIGHT)); 
+            moveCount++; 
 
             rightPromoCaptures &= rightPromoCaptures - 1; // move onto next least significant bit
         }
@@ -317,16 +328,18 @@ namespace {
         if (board.enPassantSquare != -1) {   
             if ((board.pieces[BLACK][PAWN] & ~MASK_H_FILE) >> 7 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare + 7, board.enPassantSquare, PAWN, PAWN, NONE, false, true);
-                moveList.push_back(move);
+                moveList[moveCount] = move; // add to move list
+                moveCount++;
             }
             
             if ((board.pieces[BLACK][PAWN] & ~MASK_A_FILE) >> 9 & (1ULL << board.enPassantSquare)) {
                 Move move(board.enPassantSquare + 9, board.enPassantSquare, PAWN, PAWN, NONE, false, true);
-                moveList.push_back(move);
+                moveList[moveCount] = move; // add to move list
+                moveCount++;
             }
         }
     }
-    void generateSlidingMoves(const Board& board, Piece piece, const MoveGen::Direction* dirs, vector<Move>& moveList, Color currPlayer) {
+    void generateSlidingMoves(const Board& board, Piece piece, const Direction* dirs, Move* moveList, int& moveCount, Color currPlayer) {
         Color enemy = currPlayer == WHITE ? BLACK : WHITE;
         U64 currColorPieces = board.pieces[currPlayer][piece];
 
@@ -342,7 +355,8 @@ namespace {
                 int toSquare = getLSB(currAttacks);
                 Piece captured = board.getPieceAt(enemy, toSquare);
                 Move move(fromSquare, toSquare, piece, captured);
-                moveList.push_back(move);
+                moveList[moveCount] = move; // add to move list
+                moveCount++;
 
                 currAttacks &= currAttacks - 1;
             }
@@ -351,22 +365,23 @@ namespace {
         }
     }
 }
+
 // move generation function for each individual type of piece
 namespace {
-    void generatePawnMoves(const Board& board, vector<Move>& moveList, Color currPlayer) {
+    void generatePawnMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
 
         if (currPlayer == WHITE) {
-            wPawnSinglePush(board, moveList); 
-            wPawnDoublePush(board, moveList);
-            wPawnCapture(board, moveList);
+            wPawnSinglePush(board, moveList, moveCount); 
+            wPawnDoublePush(board, moveList, moveCount);
+            wPawnCapture(board, moveList, moveCount);
         }
         else {
-            bPawnSinglePush(board, moveList);
-            bPawnDoublePush(board, moveList); 
-            bPawnCapture(board, moveList);  
+            bPawnSinglePush(board, moveList, moveCount);
+            bPawnDoublePush(board, moveList, moveCount); 
+            bPawnCapture(board, moveList, moveCount);  
         }
     }
-    void generateKnightMoves(const Board& board, vector<Move>& moveList, Color currPlayer) {
+    void generateKnightMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
         U64 knights = board.pieces[currPlayer][KNIGHT];
 
         // Go through all the players knights
@@ -374,41 +389,43 @@ namespace {
             int fromSquare = getLSB(knights);
             
             // Retrieve knight attack of each player knight and make sure it cannot capture own player pieces
-            U64 knightMoves = knightAttacks[fromSquare] & ~board.occupancy[currPlayer];
+            U64 knightMoves = MoveGen::knightAttacks[fromSquare] & ~board.occupancy[currPlayer];
             // Loop through all moves retrieved and store it
             while (knightMoves) {
                 int toSquare = getLSB(knightMoves);
                 Piece captured = board.getPieceAt(currPlayer == WHITE ? BLACK : WHITE, toSquare);
                 Move move(fromSquare, toSquare, KNIGHT, captured); // Captured == None if no enemy piece exists at toSquare
-                moveList.push_back(move);
+                moveList[moveCount] = move; // add to move list
+                moveCount++;
                 knightMoves &= knightMoves - 1;
             }
 
             knights &= knights - 1;
         }
     }
-    void generateBishopMoves(const Board& board, vector<Move>& moveList, Color currPlayer) {
-        generateSlidingMoves(board, BISHOP, DIAG_DIRS, moveList, currPlayer);
+    void generateBishopMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
+        generateSlidingMoves(board, BISHOP, DIAG_DIRS, moveList, moveCount, currPlayer);
     }
-    void generateRookMoves(const Board& board, vector<Move>& moveList, Color currPlayer) {
-        generateSlidingMoves(board, ROOK, STRAIGHT_DIRS, moveList, currPlayer);
+    void generateRookMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
+        generateSlidingMoves(board, ROOK, STRAIGHT_DIRS, moveList, moveCount, currPlayer);
     }
-    void generateQueenMoves(const Board& board, vector<Move>& moveList, Color currPlayer) {
-        generateSlidingMoves(board, QUEEN, DIAG_DIRS, moveList, currPlayer);
-        generateSlidingMoves(board, QUEEN, STRAIGHT_DIRS, moveList, currPlayer);
+    void generateQueenMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
+        generateSlidingMoves(board, QUEEN, DIAG_DIRS, moveList, moveCount, currPlayer);
+        generateSlidingMoves(board, QUEEN, STRAIGHT_DIRS, moveList, moveCount, currPlayer);
     }
-    void generateKingMoves(const Board& board, vector<Move>& moveList, Color currPlayer) {
+    void generateKingMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
         U64 kingMask = board.pieces[currPlayer][KING];
 
         int fromSquare = getLSB(kingMask);
 
         // loop through all normal king moves from curr square
-        U64 kingAttack = kingAttacks[fromSquare] & ~board.occupancy[currPlayer];
+        U64 kingAttack = MoveGen::kingAttacks[fromSquare] & ~board.occupancy[currPlayer];
         while (kingAttack) {
             int toSquare = getLSB(kingAttack);
             Piece captured = board.getPieceAt(currPlayer == WHITE ? BLACK : WHITE, toSquare);
             Move move(fromSquare, toSquare, KING, captured);
-            moveList.push_back(move);    
+            moveList[moveCount] = move; // add to move list
+            moveCount++;  
 
             kingAttack &= kingAttack - 1;
         }
@@ -421,14 +438,16 @@ namespace {
             if (board.castlingRights & 0b1000) {
                 if ((~board.occupancy[ALL] & 0x0000000000000060) == 0x0000000000000060) {
                     Move move(fromSquare, fromSquare + 2, KING, NONE, NONE, true);
-                    moveList.push_back(move);
+                    moveList[moveCount] = move; // add to move list
+                    moveCount++;
                 }
             }
             // queenside castling
             if (board.castlingRights & 0b0100) {
                 if ((~board.occupancy[ALL] & 0x000000000000000E) == 0x000000000000000E) {
                     Move move(fromSquare, fromSquare - 2, KING, NONE, NONE, true);
-                    moveList.push_back(move);
+                    moveList[moveCount] = move; // add to move list
+                    moveCount++;
                 }
             }
         }
@@ -438,14 +457,14 @@ namespace {
             if (board.castlingRights & 0b0010) {
                 if ((~board.occupancy[ALL] & 0x6000000000000000) == 0x6000000000000000) {
                     Move move(fromSquare, fromSquare + 2, KING, NONE, NONE, true);
-                    moveList.push_back(move);
+                    moveList[moveCount++] = move; // add to move list
                 }
             }
             // queenside castling
             if (board.castlingRights & 0b0001) {
                 if ((~board.occupancy[ALL] & 0x0E00000000000000) == 0x0E00000000000000) {
                     Move move(fromSquare, fromSquare - 2, KING, NONE, NONE, true);
-                    moveList.push_back(move);
+                    moveList[moveCount++] = move; // add to move list
                 }
             }
         }
@@ -453,6 +472,8 @@ namespace {
 }
 
 namespace MoveGen {
+    U64 knightAttacks[64];
+    U64 kingAttacks[64];
 
     void init() {
         preComputeKnightMoves();
@@ -464,6 +485,7 @@ namespace MoveGen {
         
         for (int i = 0; i < 4; i++) {
             U64 currAttack = 1ULL << fromSquare;
+
             currAttack = dirs[i].shift > 0 ? currAttack << dirs[i].shift : currAttack >> -dirs[i].shift;
             while (currAttack & dirs[i].noWrap) {
                 
@@ -477,22 +499,21 @@ namespace MoveGen {
         return attacks;
     }
 
-    vector<Move> generateAllMoves(Color currPlayer, Board& board) {
-        vector<Move> moveList;
-        moveList.reserve(255);
-        generatePawnMoves(board, moveList, currPlayer);
-        generateKnightMoves(board, moveList, currPlayer);
-        generateBishopMoves(board, moveList, currPlayer);
-        generateRookMoves(board, moveList, currPlayer);
-        generateQueenMoves(board, moveList, currPlayer);
-        generateKingMoves(board, moveList, currPlayer);
+    void generateAllMoves(Color currPlayer, Move* moveList, int& moveCount, Board& board) {
 
-        return moveList;
+        generatePawnMoves(board, moveList, moveCount, currPlayer);
+        generateKnightMoves(board, moveList, moveCount, currPlayer);
+        generateBishopMoves(board, moveList, moveCount, currPlayer);
+        generateRookMoves(board, moveList, moveCount, currPlayer);
+        generateQueenMoves(board, moveList, moveCount, currPlayer);
+        generateKingMoves(board, moveList, moveCount, currPlayer);
     }
 
-    vector<Move> generateLegalMoves(Board& board) {
+    void generateLegalMoves(Board& board, Move* legalMoves, int& legalMovesCount) {
+        Move allMoves[256];
+        int moveCount = 0;
         Color currPlayer = board.sideToMove;
-        vector<Move> moves = generateAllMoves(currPlayer, board);
+        generateAllMoves(currPlayer, allMoves, moveCount, board);
         int kingIndex = getLSB(board.pieces[board.sideToMove][KING]);
         Color enemyColor = currPlayer == WHITE ? BLACK : WHITE;
 
@@ -500,28 +521,23 @@ namespace MoveGen {
         bool canCastle = true;
         if (board.isSquareAttacked(enemyColor, kingIndex)) canCastle = false;
         
-        vector<Move> legalMoves;
-        legalMoves.reserve(moves.size());
-        for (const Move& move : moves) {
+        for (int i = 0; i < moveCount; i++) {
+            Move& move = allMoves[i];
             MoveInfo moveInfo = board.makeMove(move);
-            if (!board.isKingInCheck()) {
+            if (!board.isKingInCheck(currPlayer)) {
                 if (move.isCastle && canCastle) {
                     bool passesThroughCheck;
-                    if (move.fromSquare < move.toSquare) {
+                    if (move.fromSquare < move.toSquare) 
                         passesThroughCheck = board.isSquareAttacked(enemyColor, move.toSquare - 1);
-                    }
-                    else {
+                    else 
                         passesThroughCheck = board.isSquareAttacked(enemyColor, move.toSquare + 1);
-                    }
-                    if (!board.isKingInCheck() && !passesThroughCheck) {
-                        legalMoves.push_back(move);
-                    }
+                    if (!passesThroughCheck) 
+                        legalMoves[legalMovesCount++] = move;
                 }
-                else if (!move.isCastle) legalMoves.push_back(move);
+                else if (!move.isCastle) 
+                    legalMoves[legalMovesCount++] = move;
             } 
             board.unMakeMove(moveInfo);    
         }
-
-        return legalMoves;
     }
 }
