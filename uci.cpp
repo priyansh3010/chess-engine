@@ -55,9 +55,28 @@ namespace {
         }
     }
     
+    // parse go uci command
     void handleGo(string line) {
-        Move best = Engine::getBestMove(UCI::board);
-        UCI::board.makeMove(best);
+        // time controls
+        int wtime = 0, btime = 0, winc = 0, binc = 0;
+        
+        // set value properly for all time controls passed
+        istringstream ss(line);
+        string token;
+        while (ss >> token) {
+            if (token == "wtime") ss >> wtime;
+            else if (token == "btime") ss >> btime;
+            else if (token == "winc") ss >> winc;
+            else if (token == "binc") ss >> binc;
+        }
+        
+        // calculate allocated time
+        int myTime = (UCI::board.sideToMove == WHITE) ? wtime : btime;
+        int myInc  = (UCI::board.sideToMove == WHITE) ? winc  : binc;
+        
+        int allocatedMs = (myTime / 30) + (myInc / 2);
+        
+        Move best = Engine::getBestMove(UCI::board, allocatedMs);
         cout << "bestmove " << utils::moveToString(best) << endl;
     }
 }

@@ -9,5 +9,5 @@
 #include "types.h"
 
 namespace Engine {
-    Move getBestMove(Board& board);
+    Move getBestMove(Board& board, int allocatedMS = 5000);
 }

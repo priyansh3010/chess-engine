@@ -151,13 +151,13 @@ namespace {
 }
 
 namespace Engine {
-    Move getBestMove(Board& board) {
+    Move getBestMove(Board& board, int allocatedMS) {
         Move* moves = movePool;
         int moveCount = 0;
         MoveGen::generateLegalMoves(board, moves, moveCount);
 
         searchStartTime = chrono::steady_clock::now();
-        searchAllocatedMs = 5000;
+        searchAllocatedMs = allocatedMS;
         stopSearch = false;
         nodesSearched = 0;
 
