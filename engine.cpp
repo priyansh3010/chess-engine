@@ -8,12 +8,16 @@
 #include "movegen.h"
 #include "types.h"
 
+const int MAX_DEPTH = 5;
+Move movePool[256 * (MAX_DEPTH)]; // +1 for the getBestMove level
+
 namespace {
     int evaluate(Board& board) {
         // simple evaluation function to count all pieces
         int currEval = 0;
-        U64 whitePieces = board.occupancy[WHITE];
+
         // go through all the white pieces
+        U64 whitePieces = board.occupancy[WHITE];
         while (whitePieces) {
             int currIndex = getLSB(whitePieces);
             Piece currPiece = board.getPieceAt(WHITE, currIndex);
@@ -26,8 +30,8 @@ namespace {
             whitePieces &= whitePieces - 1;
         }
 
+        // go through all the black pieces
         U64 blackPieces = board.occupancy[BLACK];
-        // go through all the white pieces
         while (blackPieces) {
             int currIndex = getLSB(blackPieces);
             Piece currPiece = board.getPieceAt(BLACK, currIndex);
@@ -45,34 +49,32 @@ namespace {
         return currEval;
     }
 
-    int minimax(Board& board, int depth, int alpha, int beta) {
+    int minimax(Board& board, int depth, int alpha, int beta, Move* movePool, int plyFromRoot) {
         bool maximizingPlayer = board.sideToMove == WHITE;
         // evaluate final position
-        if (depth == 0) {
-            return evaluate(board);
-        }
+        if (depth == 0) return evaluate(board);
 
-        vector<Move> moves = MoveGen::generateLegalMoves(board); // generate all opponent moves
+        Move* moves = movePool + (plyFromRoot * 256);
+        int moveCount = 0;
+        MoveGen::generateLegalMoves(board, moves, moveCount); // generate legal opponent moves
 
         // check if game is stalemated or checkmated
-        if (moves.size() == 0) {
-            board.sideToMove = board.sideToMove == WHITE ? BLACK : WHITE;
+        if (moveCount == 0) {
             // checkmated
-            if (board.isKingInCheck()) {
-                board.sideToMove = board.sideToMove == WHITE ? BLACK : WHITE;
+            if (board.isKingInCheck(board.sideToMove)) {
                 return board.sideToMove == WHITE ? INT_MIN : INT_MAX;
             }
             // stalemated
-            board.sideToMove = board.sideToMove == WHITE ? BLACK : WHITE;
             return 0;
         }
 
         // if whites turn
         if (maximizingPlayer) {
             int bestEval = INT_MIN;
-            for (const Move& move : moves) {
+            for (int i = 0; i < moveCount; i++) {
+                Move& move = moves[i];
                 MoveInfo moveInfo = board.makeMove(move);
-                int currEval = minimax(board, depth - 1, alpha, beta);
+                int currEval = minimax(board, depth - 1, alpha, beta, movePool, plyFromRoot + 1);
                 board.unMakeMove(moveInfo);
                 bestEval = max(bestEval, currEval);
                 
@@ -85,9 +87,10 @@ namespace {
         // if blacks turn
         else {
             int bestEval = INT_MAX;
-            for (const Move& move : moves) {
+            for (int i = 0; i < moveCount; i++) {
+                Move& move = moves[i];
                 MoveInfo moveInfo = board.makeMove(move);
-                int currEval = minimax(board, depth - 1, alpha, beta);
+                int currEval = minimax(board, depth - 1, alpha, beta, movePool, plyFromRoot + 1);
                 board.unMakeMove(moveInfo);
                 bestEval = min(bestEval, currEval);
 
@@ -102,14 +105,17 @@ namespace {
 
 namespace Engine {
     Move getBestMove(Board& board) {
-        vector<Move> moves = MoveGen::generateLegalMoves(board);
+        Move* moves = movePool;
+        int moveCount = 0;
+        MoveGen::generateLegalMoves(board, moves, moveCount);
         bool maximizing = board.sideToMove == WHITE;
         
         Move bestMove = moves[0];
         int bestEval = maximizing ? INT_MIN : INT_MAX;
-        for (const Move& move : moves) {
+        for (int i = 0; i < moveCount; i++) {
+            Move& move = moves[i];
             MoveInfo moveInfo = board.makeMove(move);
-            int currEval = minimax(board, 4, INT_MIN, INT_MAX);
+            int currEval = minimax(board, 4, INT_MIN, INT_MAX, movePool, 1);
             board.unMakeMove(moveInfo);
             
             if (maximizing) {
