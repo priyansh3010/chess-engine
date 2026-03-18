@@ -10,8 +10,8 @@
 #include "uci.h"
 using namespace std;
 
+static const int PST[6][64];
 namespace Evaluation {
-    extern const int PST[6][64];
 
     int evaluate(Board& board);
 }
