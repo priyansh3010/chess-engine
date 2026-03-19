@@ -288,8 +288,8 @@ MoveInfo Board::makeMove(Move move) {
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 4);
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 1);
         }
-        if (sideToMove == WHITE) castlingRights ^= 0b1100;
-        if (sideToMove == BLACK) castlingRights ^= 0b0011;
+        if (sideToMove == WHITE) castlingRights &= 0b0011;
+        if (sideToMove == BLACK) castlingRights &= 0b1100;
         // move king to correct spot
         pieces[sideToMove][KING] ^= (1ULL << move.fromSquare);
         pieces[sideToMove][KING] ^= (1ULL << move.toSquare);
