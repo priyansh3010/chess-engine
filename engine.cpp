@@ -22,6 +22,51 @@ int searchAllocatedMs = 5000;
 bool stopSearch = false;
 int nodesSearched = 0;
 
+// move ordering namespace
+namespace {
+    constexpr int mvvLvaValues[6] = {
+        0, // king (shouldn't be captured but just in case)
+        900, // queen
+        500, // rook
+        300, // bishop
+        300, // knight
+        100, // pawn
+    };
+
+    int scoreMVVLVA(const Move& move) {
+        return mvvLvaValues[move.capturedPiece] - mvvLvaValues[move.pieceType];
+    }
+
+    void orderMoves(Move* moves, int moveCount, int bestMoveIdx = -1) {
+        // assign scores
+        static int scores[256];
+        for (int i = 0; i < moveCount; i++) {
+            if (i == bestMoveIdx) {
+                scores[i] = 100000; // always search best move first
+            } 
+            else if (moves[i].capturedPiece != NONE) {
+                scores[i] = scoreMVVLVA(moves[i]);
+            } 
+            else {
+                scores[i] = 0;
+            }
+        }
+        // simple insertion sort
+        for (int i = 1; i < moveCount; i++) {
+            int key = scores[i];
+            Move m = moves[i];
+            int j = i - 1;
+            while (j >= 0 && scores[j] < key) {
+                scores[j + 1] = scores[j];
+                moves[j + 1] = moves[j];
+                j--;
+            }
+            scores[j + 1] = key;
+            moves[j + 1] = m;
+        }
+    }
+}
+
 namespace {
     int minimax(Board& board, int depth, int alpha, int beta, Move* movePool, int plyFromRoot, int& nodesSearched) {
         bool maximizingPlayer = board.sideToMove == WHITE;
@@ -50,6 +95,9 @@ namespace {
             // stalemated
             return 0;
         }
+
+        // move ordering
+        orderMoves(moves, moveCount);
 
         // if whites turn
         if (maximizingPlayer) {
@@ -85,11 +133,15 @@ namespace {
         }
     }
 
-    Move searchRoot(Board& board, int depth, Move* moves, int& moveCount, int& nodesSearched) {
+    int searchRoot(Board& board, int depth, Move* moves, int& moveCount, int& nodesSearched, int bestMove = -1) {
         bool maximizing = board.sideToMove == WHITE;
 
-        Move bestMove = moves[0];
-        int bestEval = maximizing ? INT_MIN : INT_MAX;
+        int bestEval = maximizing ? -INF : INF;
+        
+        // move ordering
+        orderMoves(moves, moveCount);
+        
+        // start from best move (if present)
         for (int i = 0; i < moveCount; i++) {
             Move& move = moves[i];
             MoveInfo moveInfo = board.makeMove(move);
@@ -99,13 +151,13 @@ namespace {
             if (maximizing) {
                 if (bestEval < currEval) {
                     bestEval = currEval;
-                    bestMove = move;
+                    bestMove = i;
                 } 
             }
             else {
                 if (bestEval > currEval) {
                     bestEval = currEval;
-                    bestMove = move;
+                    bestMove = i;
                 }     
             }
         }
@@ -116,28 +168,35 @@ namespace {
 
 namespace Engine {
     Move getBestMove(Board& board, int allocatedMS) {
+        // get all legal moves on the board
         Move* moves = movePool;
         int moveCount = 0;
         MoveGen::generateLegalMoves(board, moves, moveCount);
 
+        // intilize and set all values to time search
         searchStartTime = chrono::steady_clock::now();
         searchAllocatedMs = allocatedMS;
         stopSearch = false;
         nodesSearched = 0;
 
-        Move bestMove = moveCount != 0 ? moves[0] : Move{};
+        // iterative deepening
+        int bestMove = 0;
         int maxDepthReached = 1;
         for (int depth = 1; depth <= MAX_DEPTH; depth++) {
-            Move candidateMove = searchRoot(board, depth, moves, moveCount, nodesSearched);
-
+            int candidateMove;
+            if (depth == 1) candidateMove = searchRoot(board, depth, moves, moveCount, nodesSearched); 
+            else candidateMove = searchRoot(board, depth, moves, moveCount, nodesSearched, bestMove); 
+            
+            // if time finished, discard previous depth results
+            // because not all nodes explored
             if (stopSearch) break;
 
             maxDepthReached = depth;
             bestMove = candidateMove;
         }
         
+        // pass extra info for engine stats
         cout << "info depth " << maxDepthReached << " score cp " << Evaluation::evaluate(board) << " nodes " << nodesSearched << endl;
-        
-        return bestMove;
+        return moves[bestMove];
     }
 }
