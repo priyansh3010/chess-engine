@@ -371,14 +371,14 @@ namespace {
     void generatePawnMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
 
         if (currPlayer == WHITE) {
-            wPawnSinglePush(board, moveList, moveCount); 
             wPawnDoublePush(board, moveList, moveCount);
             wPawnCapture(board, moveList, moveCount);
+            wPawnSinglePush(board, moveList, moveCount); 
         }
         else {
-            bPawnSinglePush(board, moveList, moveCount);
             bPawnDoublePush(board, moveList, moveCount); 
             bPawnCapture(board, moveList, moveCount);  
+            bPawnSinglePush(board, moveList, moveCount);
         }
     }
     void generateKnightMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
