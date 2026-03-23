@@ -387,3 +387,113 @@ bool Board::isSquareAttacked(Color attackingPlayer, int toSquare) {
        (pieces[attackingPlayer][ROOK] | pieces[attackingPlayer][QUEEN])) return true;
     return false;
 }
+
+bool Board::isInsufficientMaterial() {
+    // check if queen, rook, or pawns exist for either side
+    if (pieces[WHITE][QUEEN] | pieces[WHITE][ROOK] | pieces[WHITE][PAWN]
+      | pieces[BLACK][QUEEN] | pieces[BLACK][ROOK] | pieces[BLACK][PAWN]) return false;
+    
+    // if made here, neither side has queens, rooks or pawns
+
+    // check if only kings exist
+    if (!(pieces[WHITE][KNIGHT] | pieces[BLACK][KNIGHT] 
+      | pieces[WHITE][BISHOP] | pieces[BLACK][BISHOP])) return true;
+    // above condition confirms that at least black or white has a knight or bishop
+    
+    // check if white only has king
+    if (occupancy[WHITE] == pieces[WHITE][KING]) {
+        // check if black only has 1 bishop
+        U64 blackBishops = pieces[BLACK][BISHOP];
+        int count = 0;
+        while (blackBishops) {
+            count++;
+            blackBishops &= blackBishops - 1;
+        }
+
+        if (count == 1 && (pieces[BLACK][BISHOP] | pieces[BLACK][KING]) == occupancy[BLACK]) return true;
+        
+        // check if black only has 1 knight
+        U64 blackKnights = pieces[BLACK][KNIGHT];
+        count = 0;
+        while (blackKnights) {
+            count++;
+            blackKnights &= blackKnights - 1;
+        }
+
+        if (count == 1 && (pieces[BLACK][KNIGHT] | pieces[BLACK][KING]) == occupancy[BLACK]) return true;
+    }
+    
+    // check if black only has king
+    if (occupancy[BLACK] == pieces[BLACK][KING]) {
+        // check if black only has 1 bishop
+        U64 whiteBishops = pieces[WHITE][BISHOP];
+        int count = 0;
+        while (whiteBishops) {
+            count++;
+            whiteBishops &= whiteBishops - 1;
+        }
+
+        if (count == 1 && (pieces[WHITE][BISHOP] | pieces[WHITE][KING]) == occupancy[WHITE]) return true;
+        
+        // check if black only has 1 knight
+        U64 whiteKnights = pieces[WHITE][KNIGHT];
+        count = 0;
+        while (whiteKnights) {
+            count++;
+            whiteKnights &= whiteKnights - 1;
+        }
+
+        if (count == 1 && (pieces[WHITE][KNIGHT] | pieces[WHITE][KING]) == occupancy[WHITE]) return true;
+    }
+    
+    // check if both sides only have king + bishop (same color)
+    if (!(pieces[WHITE][KNIGHT] | pieces[BLACK][KNIGHT])) {
+        U64 whiteBishops = pieces[WHITE][BISHOP];
+        U64 blackBishops = pieces[BLACK][BISHOP];
+        // count all white bishops
+        int whiteBishopsCount = 0;
+        while (whiteBishops) {
+            whiteBishopsCount++;
+            whiteBishops &= whiteBishops - 1;
+        }
+        
+        // count all black bishops
+        int blackBishopsCount = 0;
+        while(blackBishops) {
+            blackBishopsCount++;
+            blackBishops &= blackBishops - 1;
+        }
+
+        // check if only one bishop exists for each player
+        if (whiteBishopsCount == 1 && blackBishopsCount == 1) {
+            // check if bishops are on the same colored square
+            if (IS_WHITE[getLSB(pieces[WHITE][BISHOP])] == IS_WHITE[getLSB(pieces[BLACK][BISHOP])])
+                return true;
+        }
+    }
+    else {
+        if (!(pieces[WHITE][BISHOP] | pieces[BLACK][BISHOP])) {
+            U64 whiteKnights = pieces[WHITE][KNIGHT];
+            U64 blackKnights = pieces[BLACK][KNIGHT];
+            // count all white knights
+            int whiteKnightsCount = 0;
+            while (whiteKnights) {
+                whiteKnightsCount++;
+                whiteKnights &= whiteKnights - 1;
+            }
+            
+            // count all black knights
+            int blackKnightsCount = 0;
+            while(blackKnights) {
+                blackKnightsCount++;
+                blackKnights &= blackKnights - 1;
+            }
+
+            // check if only one knight exists for each player
+            if (whiteKnightsCount == 1 && blackKnightsCount == 1) 
+                return true;
+        }
+    }
+
+    return false;
+}

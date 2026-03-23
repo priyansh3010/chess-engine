@@ -23,4 +23,5 @@ struct Board {
     void unMakeMove(MoveInfo moveInfo);
     bool isKingInCheck(Color kingColor);
     bool isSquareAttacked(Color currPlayer, int toSquare);
+    bool isInsufficientMaterial();
 };
