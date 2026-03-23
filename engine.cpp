@@ -69,6 +69,7 @@ namespace {
 
 namespace {
     int minimax(Board& board, int depth, int alpha, int beta, Move* movePool, int plyFromRoot, int& nodesSearched) {
+        
         bool maximizingPlayer = board.sideToMove == WHITE;
         // check if search time is over
         if ((nodesSearched & 2047) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
@@ -90,11 +91,17 @@ namespace {
         if (moveCount == 0) {
             // checkmated
             if (board.isKingInCheck(board.sideToMove)) {
-                return board.sideToMove == WHITE ? -INF + plyFromRoot : INF - plyFromRoot;
+                return board.sideToMove == WHITE ? -INF - plyFromRoot : INF + plyFromRoot;
             }
             // stalemated
             return 0;
         }
+
+        // enforce 50-move draw
+        if (board.halfMoveClock >= 50) return 0;
+
+        // enforce draw by insufficient material
+        if (board.isInsufficientMaterial()) return 0;
 
         // move ordering
         orderMoves(moves, moveCount);
