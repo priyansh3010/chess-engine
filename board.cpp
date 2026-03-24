@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <random>
 #include <sstream>
 #include <string>
 #include "board.h"
@@ -19,6 +20,36 @@ namespace {
                                 | board.pieces[BLACK][QUEEN] | board.pieces[BLACK][PAWN];
 
         board.occupancy[ALL] = board.occupancy[WHITE] | board.occupancy[BLACK];
+    }
+}
+
+// namespace for zobristhashing initilization
+namespace {
+    bool initialized = false;
+
+    U64 zobristTable[2][6][64];
+    U64 zobristWhiteToMove;
+    U64 zobristCastling[16];
+    U64 zobristEnPassant[8];
+
+    void initZobrist() {
+        std::mt19937_64 rng(1234567891011ULL); // any fixed seed
+        std::uniform_int_distribution<uint64_t> dist;
+
+        for (int c = 0; c < 2; c++)
+            for (int p = 0; p < 6; p++)
+                for (int s = 0; s < 64; s++)
+                    zobristTable[c][p][s] = dist(rng);
+
+        zobristWhiteToMove = dist(rng);
+
+        for (int i = 0; i < 16; i++)
+            zobristCastling[i] = dist(rng);
+
+        for (int i = 0; i < 8; i++)
+            zobristEnPassant[i] = dist(rng);
+        
+        initialized = true;
     }
 }
 
@@ -132,6 +163,9 @@ void Board::init(string FEN) {
 
     // pre-compute knight moves
     MoveGen::init();
+    if (!initialized) initZobrist();
+    hash = 0;
+    historyPly = 0;
 }
 
 void Board::printBoard() {
@@ -172,36 +206,45 @@ Piece Board::getPieceAt(Color color, int square) const {
 }
 
 MoveInfo Board::makeMove(Move move) {
+    // hash xoring out is done for zobrist hashing all throughout this function
     MoveInfo moveInfo(move, enPassantSquare, castlingRights, halfMoveClock, fullMoveNumber, sideToMove);
     
+    if (enPassantSquare != -1) hash ^= zobristEnPassant[enPassantSquare % 8];
     enPassantSquare = -1; // update enPassant
     
     // basic captures and en passant moves
     if (move.promotionPiece == NONE && !move.isCastle){
         pieces[sideToMove][move.pieceType] ^= (1ULL << move.fromSquare);
+        hash ^= zobristTable[sideToMove][move.pieceType][move.fromSquare];
         pieces[sideToMove][move.pieceType] ^= (1ULL << move.toSquare);
+        hash ^= zobristTable[sideToMove][move.pieceType][move.toSquare];
         
         // checks if move was double pawn push
         if (move.pieceType == PAWN && abs(move.fromSquare - move.toSquare) == 16) {
             enPassantSquare = sideToMove == WHITE ? move.toSquare - 8 : move.toSquare + 8;
+            hash ^= zobristEnPassant[enPassantSquare % 8];
         }
         // special conditions if move was enpassant
         else if (move.capturedPiece == PAWN && move.isEnPassant) {
             if (sideToMove == WHITE) {
                 pieces[BLACK][PAWN] ^= (1ULL << (move.toSquare - 8));
+                hash ^= zobristTable[BLACK][PAWN][move.toSquare - 8];
             }
             if (sideToMove == BLACK) {
                 pieces[WHITE][PAWN] ^= (1ULL << (move.toSquare + 8));
+                hash ^= zobristTable[WHITE][PAWN][move.toSquare + 8];
             }
             halfMoveClock = 0;
         }
         // checks if normal capture took place
         else if (move.capturedPiece != NONE) {
             pieces[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece] ^= (1ULL << move.toSquare);
+            hash ^= zobristTable[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece][move.toSquare];
             halfMoveClock = 0;
 
             // update castling rights if captured piece was rook
             if (move.capturedPiece == ROOK) {
+                hash ^= zobristCastling[castlingRights];
                 if (sideToMove == BLACK) {
                     if (move.toSquare == 0) {
                         if (castlingRights & 0b0100) castlingRights ^= 0b0100;
@@ -218,11 +261,13 @@ MoveInfo Board::makeMove(Move move) {
                         if (castlingRights & 0b0010) castlingRights ^= 0b0010;
                     }
                 }
+                hash ^= zobristCastling[castlingRights];
             }
         }
         
         // update castling rights if necessary
         if (move.pieceType == ROOK) {
+            hash ^= zobristCastling[castlingRights];
             if (sideToMove == WHITE) {
                 if (move.fromSquare == 0) {
                     if (castlingRights & 0b0100) castlingRights ^= 0b0100;
@@ -239,24 +284,31 @@ MoveInfo Board::makeMove(Move move) {
                     if (castlingRights & 0b0010) castlingRights ^= 0b0010;
                 }
             }
+            hash ^= zobristCastling[castlingRights];
         }
         else if (move.pieceType == KING) {
+            hash ^= zobristCastling[castlingRights];
             if (sideToMove == WHITE) castlingRights &= 0b0011;
             else castlingRights &= 0b1100;
+            hash ^= zobristCastling[castlingRights];
         }
     }
     // promotion move
     else if (move.promotionPiece != NONE) {
         pieces[sideToMove][PAWN] ^= (1ULL << move.fromSquare); // removes pawn from bitboard
+        hash ^= zobristTable[sideToMove][PAWN][move.fromSquare];
         pieces[sideToMove][move.promotionPiece] ^= (1ULL << move.toSquare); // adds promoted pieces to appropriate bitboard
+        hash ^= zobristTable[sideToMove][move.promotionPiece][move.toSquare];
         
         // removes captured piece from appropriate bitboard
         if (move.capturedPiece != NONE) {
             pieces[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece] ^= (1ULL << move.toSquare);
+            hash ^= zobristTable[sideToMove == WHITE ? BLACK : WHITE][move.capturedPiece][move.toSquare];
             halfMoveClock = 0;
-
+            
             // update castling rights if captured piece was rook
             if (move.capturedPiece == ROOK) {
+                hash ^= zobristCastling[castlingRights];
                 if (sideToMove == BLACK) {
                     if (move.toSquare == 0) {
                         if (castlingRights & 0b0100) castlingRights ^= 0b0100;
@@ -273,26 +325,35 @@ MoveInfo Board::makeMove(Move move) {
                         if (castlingRights & 0b0010) castlingRights ^= 0b0010;
                     }
                 }
+                hash ^= zobristCastling[castlingRights];
             }
         }
     }
     // castling moves
     else if (move.isCastle) {
+        hash ^= zobristCastling[castlingRights];
         if (move.toSquare > move.fromSquare) {
             // move rook to correct spot
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare + 3);
+            hash ^= zobristTable[sideToMove][ROOK][move.fromSquare + 3];
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare + 1);
+            hash ^= zobristTable[sideToMove][ROOK][move.fromSquare + 1];
         }
         else {
             // move rook to correct spot
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 4);
+            hash ^= zobristTable[sideToMove][ROOK][move.fromSquare - 4];
             pieces[sideToMove][ROOK] ^= (1ULL << move.fromSquare - 1);
+            hash ^= zobristTable[sideToMove][ROOK][move.fromSquare - 1];
         }
         if (sideToMove == WHITE) castlingRights &= 0b0011;
         if (sideToMove == BLACK) castlingRights &= 0b1100;
+        hash ^= zobristCastling[castlingRights];
         // move king to correct spot
         pieces[sideToMove][KING] ^= (1ULL << move.fromSquare);
+        hash ^= zobristTable[sideToMove][KING][move.fromSquare];
         pieces[sideToMove][KING] ^= (1ULL << move.toSquare);
+        hash ^= zobristTable[sideToMove][KING][move.toSquare];
     }
 
     // halfMoveClock update
@@ -303,6 +364,11 @@ MoveInfo Board::makeMove(Move move) {
     if (sideToMove == BLACK) fullMoveNumber++;
 
     sideToMove = sideToMove == WHITE ? BLACK : WHITE;
+
+    hash ^= zobristWhiteToMove;
+
+    // add current hash to hashHistory array
+    hashHistory[historyPly++] = hash;
 
     updateOccupancyBoards(*this);
     return moveInfo;
@@ -357,6 +423,9 @@ void Board::unMakeMove(MoveInfo moveInfo) {
 
     // update all occupancy boards
     updateOccupancyBoards(*this);
+
+    // revert hash back to before this move
+    hash = hashHistory[--historyPly];
 }
 
 bool Board::isKingInCheck(Color kingColor) {

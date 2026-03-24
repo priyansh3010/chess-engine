@@ -15,6 +15,11 @@ struct Board {
     int halfMoveClock;
     int fullMoveNumber;
 
+    // zobrist hashing
+    U64 hash;
+    U64 hashHistory[600];
+    int historyPly;
+
     void loadFEN(string FEN);
     void init(string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     void printBoard();
