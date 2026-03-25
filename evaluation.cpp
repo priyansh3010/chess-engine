@@ -217,6 +217,11 @@ namespace {
             blackPieces &= blackPieces - 1; // move to next LSB
         }
     }
+
+    void checkForCheck(Board& board, int& currEval) {
+        if (board.isKingInCheck(WHITE)) currEval = -INF;
+        else if (board.isKingInCheck(BLACK)) currEval = INF;
+    }
 }
 
 namespace Evaluation {
@@ -225,6 +230,7 @@ namespace Evaluation {
         
         countMaterial(board, currEval);
         calculatePieceSquareTables(board, currEval);
+        // checkForCheck(board, currEval);
         
         return currEval;
     }
