@@ -16,6 +16,8 @@ const int MAX_DEPTH = 20;
 const int MAX_PLY = 128;
 Move movePool[256 * MAX_PLY];
 
+const int MOVES_BEFORE_CHECKING_TIME = 2047;
+
 // for time management
 auto searchStartTime = chrono::steady_clock::now();
 int searchAllocatedMs = 5000;
@@ -86,7 +88,7 @@ namespace {
 namespace {
     int quiscenceSearch(Board& board, int alpha, int beta, Move* movePool, int plyFromRoot, int& nodesSearched) {
         // check if search time is over
-        if ((nodesSearched & 2047) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
+        if ((nodesSearched & MOVES_BEFORE_CHECKING_TIME) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
 
         // terminate minimax if search over
         if (stopSearch) return 0;
@@ -170,7 +172,7 @@ namespace {
         
         bool maximizingPlayer = board.sideToMove == WHITE;
         // check if search time is over
-        if ((nodesSearched & 2047) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
+        if ((nodesSearched & MOVES_BEFORE_CHECKING_TIME) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
 
         // terminate minimax if search over
         if (stopSearch) return 0;
