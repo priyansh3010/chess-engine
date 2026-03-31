@@ -12,6 +12,6 @@ namespace MoveGen {
 
     void init();
     U64 getRays(int fromSquare, U64 currPlayerPieces, U64 opponentPieces, const Direction* dirs);
-    void generateAllMoves(Color currPlayer, Move* moveList, int& moveCount, Board& board);
-    void generateLegalMoves(Board& board, Move* legalMoves, int& legalMovesCount);
+    void generateAllMoves(Color currPlayer, Move* moveList, int& moveCount, Board& board, bool capturesOnly = false);
+    void generateLegalMoves(Board& board, Move* legalMoves, int& legalMovesCount, bool capturesOnly = false);
 }

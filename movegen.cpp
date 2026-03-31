@@ -339,7 +339,7 @@ namespace {
             }
         }
     }
-    void generateSlidingMoves(const Board& board, Piece piece, const Direction* dirs, Move* moveList, int& moveCount, Color currPlayer) {
+    void generateSlidingMoves(const Board& board, Piece piece, const Direction* dirs, Move* moveList, int& moveCount, Color currPlayer, bool& capturesOnly) {
         Color enemy = currPlayer == WHITE ? BLACK : WHITE;
         U64 currColorPieces = board.pieces[currPlayer][piece];
 
@@ -354,9 +354,11 @@ namespace {
             while (currAttacks) {
                 int toSquare = getLSB(currAttacks);
                 Piece captured = board.getPieceAt(enemy, toSquare);
-                Move move(fromSquare, toSquare, piece, captured);
-                moveList[moveCount] = move; // add to move list
-                moveCount++;
+                if ((!capturesOnly) || (capturesOnly && captured != NONE)) {
+                    Move move(fromSquare, toSquare, piece, captured);
+                    moveList[moveCount] = move; // add to move list
+                    moveCount++;
+                }
 
                 currAttacks &= currAttacks - 1;
             }
@@ -368,20 +370,28 @@ namespace {
 
 // move generation function for each individual type of piece
 namespace {
-    void generatePawnMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
+    void generatePawnMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer, bool& capturesOnly) {
 
         if (currPlayer == WHITE) {
-            wPawnDoublePush(board, moveList, moveCount);
-            wPawnCapture(board, moveList, moveCount);
-            wPawnSinglePush(board, moveList, moveCount); 
+            if (capturesOnly) 
+                wPawnCapture(board, moveList, moveCount);
+            else {
+                wPawnCapture(board, moveList, moveCount);
+                wPawnDoublePush(board, moveList, moveCount);
+                wPawnSinglePush(board, moveList, moveCount);
+            }
         }
         else {
-            bPawnDoublePush(board, moveList, moveCount); 
-            bPawnCapture(board, moveList, moveCount);  
-            bPawnSinglePush(board, moveList, moveCount);
+            if (capturesOnly) 
+                bPawnCapture(board, moveList, moveCount);  
+            else {
+                bPawnCapture(board, moveList, moveCount);      
+                bPawnDoublePush(board, moveList, moveCount); 
+                bPawnSinglePush(board, moveList, moveCount);
+            }
         }
     }
-    void generateKnightMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
+    void generateKnightMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer, bool& capturesOnly) {
         U64 knights = board.pieces[currPlayer][KNIGHT];
 
         // Go through all the players knights
@@ -394,26 +404,28 @@ namespace {
             while (knightMoves) {
                 int toSquare = getLSB(knightMoves);
                 Piece captured = board.getPieceAt(currPlayer == WHITE ? BLACK : WHITE, toSquare);
-                Move move(fromSquare, toSquare, KNIGHT, captured); // Captured == None if no enemy piece exists at toSquare
-                moveList[moveCount] = move; // add to move list
-                moveCount++;
+                if ((!capturesOnly) || (capturesOnly && captured != NONE)) {
+                    Move move(fromSquare, toSquare, KNIGHT, captured); // Captured == None if no enemy piece exists at toSquare
+                    moveList[moveCount] = move; // add to move list
+                    moveCount++;
+                }
                 knightMoves &= knightMoves - 1;
             }
 
             knights &= knights - 1;
         }
     }
-    void generateBishopMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
-        generateSlidingMoves(board, BISHOP, DIAG_DIRS, moveList, moveCount, currPlayer);
+    void generateBishopMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer, bool& capturesOnly) {
+        generateSlidingMoves(board, BISHOP, DIAG_DIRS, moveList, moveCount, currPlayer, capturesOnly);
     }
-    void generateRookMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
-        generateSlidingMoves(board, ROOK, STRAIGHT_DIRS, moveList, moveCount, currPlayer);
+    void generateRookMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer, bool& capturesOnly) {
+        generateSlidingMoves(board, ROOK, STRAIGHT_DIRS, moveList, moveCount, currPlayer, capturesOnly);
     }
-    void generateQueenMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
-        generateSlidingMoves(board, QUEEN, DIAG_DIRS, moveList, moveCount, currPlayer);
-        generateSlidingMoves(board, QUEEN, STRAIGHT_DIRS, moveList, moveCount, currPlayer);
+    void generateQueenMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer, bool& capturesOnly) {
+        generateSlidingMoves(board, QUEEN, DIAG_DIRS, moveList, moveCount, currPlayer, capturesOnly);
+        generateSlidingMoves(board, QUEEN, STRAIGHT_DIRS, moveList, moveCount, currPlayer, capturesOnly);
     }
-    void generateKingMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer) {
+    void generateKingMoves(const Board& board, Move* moveList, int& moveCount, Color currPlayer, bool& capturesOnly) {
         U64 kingMask = board.pieces[currPlayer][KING];
 
         int fromSquare = getLSB(kingMask);
@@ -423,15 +435,18 @@ namespace {
         while (kingAttack) {
             int toSquare = getLSB(kingAttack);
             Piece captured = board.getPieceAt(currPlayer == WHITE ? BLACK : WHITE, toSquare);
-            Move move(fromSquare, toSquare, KING, captured);
-            moveList[moveCount] = move; // add to move list
-            moveCount++;  
+            if ((!capturesOnly) || (capturesOnly && captured != NONE)) {
+                Move move(fromSquare, toSquare, KING, captured);
+                moveList[moveCount] = move; // add to move list
+                moveCount++;  
+            }
 
             kingAttack &= kingAttack - 1;
         }
 
+        if (capturesOnly) return;
+        
         // castling moves
-
         // white castling
         if (currPlayer == WHITE) {
             // kingside castling
@@ -499,21 +514,21 @@ namespace MoveGen {
         return attacks;
     }
 
-    void generateAllMoves(Color currPlayer, Move* moveList, int& moveCount, Board& board) {
+    void generateAllMoves(Color currPlayer, Move* moveList, int& moveCount, Board& board, bool capturesOnly) {
 
-        generatePawnMoves(board, moveList, moveCount, currPlayer);
-        generateKnightMoves(board, moveList, moveCount, currPlayer);
-        generateBishopMoves(board, moveList, moveCount, currPlayer);
-        generateRookMoves(board, moveList, moveCount, currPlayer);
-        generateQueenMoves(board, moveList, moveCount, currPlayer);
-        generateKingMoves(board, moveList, moveCount, currPlayer);
+        generatePawnMoves(board, moveList, moveCount, currPlayer, capturesOnly);
+        generateKnightMoves(board, moveList, moveCount, currPlayer, capturesOnly);
+        generateBishopMoves(board, moveList, moveCount, currPlayer, capturesOnly);
+        generateRookMoves(board, moveList, moveCount, currPlayer, capturesOnly);
+        generateQueenMoves(board, moveList, moveCount, currPlayer, capturesOnly);
+        generateKingMoves(board, moveList, moveCount, currPlayer, capturesOnly);
     }
 
-    void generateLegalMoves(Board& board, Move* legalMoves, int& legalMovesCount) {
+    void generateLegalMoves(Board& board, Move* legalMoves, int& legalMovesCount, bool capturesOnly) {
         Move allMoves[256];
         int moveCount = 0;
         Color currPlayer = board.sideToMove;
-        generateAllMoves(currPlayer, allMoves, moveCount, board);
+        generateAllMoves(currPlayer, allMoves, moveCount, board, capturesOnly);
         int kingIndex = getLSB(board.pieces[board.sideToMove][KING]);
         Color enemyColor = currPlayer == WHITE ? BLACK : WHITE;
 
