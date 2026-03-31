@@ -16,7 +16,7 @@ const int MAX_DEPTH = 20;
 const int MAX_PLY = 128;
 Move movePool[256 * MAX_PLY];
 
-const int MOVES_BEFORE_CHECKING_TIME = 2047;
+const int NODES_BEFORE_CHECKING_TIME = 2047;
 
 // for time management
 auto searchStartTime = chrono::steady_clock::now();
@@ -26,7 +26,7 @@ int nodesSearched = 0;
 
 // move ordering namespace
 namespace {
-    constexpr int mvvLvaValues[6] = {
+    constexpr int pieceValues[6] = {
         0, // king (shouldn't be captured but just in case)
         900, // queen
         500, // rook
@@ -36,7 +36,7 @@ namespace {
     };
 
     int scoreMVVLVA(const Move& move) {
-        return mvvLvaValues[move.capturedPiece] - mvvLvaValues[move.pieceType] + 10000;
+        return pieceValues[move.capturedPiece] - pieceValues[move.pieceType] + 10000;
     }
 
     void orderMoves(Move* moves, int& moveCount, Move bestMove = Move()) {
@@ -88,7 +88,7 @@ namespace {
 namespace {
     int quiscenceSearch(Board& board, int alpha, int beta, Move* movePool, int plyFromRoot, int& nodesSearched) {
         // check if search time is over
-        if ((nodesSearched & MOVES_BEFORE_CHECKING_TIME) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
+        if ((nodesSearched & NODES_BEFORE_CHECKING_TIME) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
 
         // terminate minimax if search over
         if (stopSearch) return 0;
@@ -103,24 +103,12 @@ namespace {
 
             Move* moves = movePool + (plyFromRoot * 256);
             int moveCount = 0;
-            MoveGen::generateLegalMoves(board, moves, moveCount); // generate legal opponent moves
-
-            // check if game is stalemated or checkmated
-            if (moveCount == 0) {
-                // checkmated
-                if (board.isKingInCheck(board.sideToMove)) {
-                    return board.sideToMove == WHITE ? -INF + plyFromRoot : INF - plyFromRoot;
-                }
-                // stalemated
-                return 0;
-            }
+            MoveGen::generateLegalMoves(board, moves, moveCount, true); // generate legal captures only
             
             // order moves
             orderMoves(moves, moveCount);
             
             for (int i = 0; i < moveCount; i++) {
-                if (moves[i].capturedPiece == NONE) break;
-
                 MoveInfo moveInfo = board.makeMove(moves[i]);
                 int score = quiscenceSearch(board, alpha, beta, movePool, plyFromRoot + 1, nodesSearched);
                 board.unMakeMove(moveInfo);
@@ -137,24 +125,12 @@ namespace {
             
             Move* moves = movePool + (plyFromRoot * 256);
             int moveCount = 0;
-            MoveGen::generateLegalMoves(board, moves, moveCount); // generate legal opponent moves
+            MoveGen::generateLegalMoves(board, moves, moveCount, true); // generate legal captures only
 
-            // check if game is stalemated or checkmated
-            if (moveCount == 0) {
-                // checkmated
-                if (board.isKingInCheck(board.sideToMove)) {
-                    return board.sideToMove == WHITE ? -INF + plyFromRoot : INF - plyFromRoot;
-                }
-                // stalemated
-                return 0;
-            }
-            
             // order moves
             orderMoves(moves, moveCount);
             
             for (int i = 0; i < moveCount; i++) {
-                if (moves[i].capturedPiece == NONE) break;
-
                 MoveInfo moveInfo = board.makeMove(moves[i]);
                 int score = quiscenceSearch(board, alpha, beta, movePool, plyFromRoot + 1, nodesSearched);
                 board.unMakeMove(moveInfo);
@@ -172,7 +148,7 @@ namespace {
         
         bool maximizingPlayer = board.sideToMove == WHITE;
         // check if search time is over
-        if ((nodesSearched & MOVES_BEFORE_CHECKING_TIME) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
+        if ((nodesSearched & NODES_BEFORE_CHECKING_TIME) == 0 && utils::isTimeUp(searchAllocatedMs, searchStartTime)) stopSearch = true;
 
         // terminate minimax if search over
         if (stopSearch) return 0;
@@ -186,7 +162,7 @@ namespace {
 
         Move* moves = movePool + (plyFromRoot * 256);
         int moveCount = 0;
-        MoveGen::generateLegalMoves(board, moves, moveCount); // generate legal opponent moves
+        MoveGen::generateLegalMoves(board, moves, moveCount); // generate legal moves of current player
 
         // check if game is stalemated or checkmated
         if (moveCount == 0) {
