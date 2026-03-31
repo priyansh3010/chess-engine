@@ -10,33 +10,33 @@
 using namespace std;
 
 
-U64 perft(Board& board, int depth, Move* movePool) {
+U64 perft(Board& board, int depth, Move* movePool, bool capturesOnly) {
     if (depth == 0) return 1;
     
     Move* moves = movePool + (depth * 256);
     int moveCount = 0;
-    MoveGen::generateLegalMoves(board, moves, moveCount);
+    MoveGen::generateLegalMoves(board, moves, moveCount, capturesOnly);
     
     U64 nodes = 0;
     for (int i = 0; i < moveCount; i++) {
         Move& move = moves[i];
         MoveInfo moveInfo = board.makeMove(move);
-        nodes += perft(board, depth - 1, movePool);
+        nodes += perft(board, depth - 1, movePool, capturesOnly);
         board.unMakeMove(moveInfo);
     }
     return nodes;
 }
 
-int perftDivide(Board& board, int depth, Move* movePool) {
+int perftDivide(Board& board, int depth, Move* movePool, bool capturesOnly) {
     Move* moves = movePool + (depth * 256);
     int moveCount = 0;
-    MoveGen::generateLegalMoves(board, moves, moveCount);
+    MoveGen::generateLegalMoves(board, moves, moveCount, capturesOnly);
     
     uint64_t total = 0;
     for (int i = 0; i < moveCount; i++) {
         Move& move = moves[i];
         MoveInfo moveInfo = board.makeMove(move);
-        uint64_t count = perft(board, depth - 1, movePool);
+        uint64_t count = perft(board, depth - 1, movePool, capturesOnly);
         board.unMakeMove(moveInfo);
 
         cout << utils::moveToString(move);

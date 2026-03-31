@@ -8,5 +8,5 @@
 #include "movegen.h"
 #include "types.h"
 
-U64 perft(Board& board, int depth, Move* movePool);
-int perftDivide(Board& board, int depth, Move* movePool);
+U64 perft(Board& board, int depth, Move* movePool, bool capturesOnly);
+int perftDivide(Board& board, int depth, Move* movePool, bool capturesOnly);
