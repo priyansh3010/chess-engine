@@ -54,14 +54,12 @@ namespace {
             else if (moves[i].capturedPiece != NONE) {
                 scores[i] = scoreMVVLVA(moves[i]);
             }
-            /*
             else if (moves[i] == killerMoves[0][currPly]) {
                 scores[i] = -1000;
             }
             else if (moves[i] == killerMoves[1][currPly]) {
                 scores[i] = -2000;
             }
-            */
             else {
                 scores[i] = -INF;
             }
@@ -107,7 +105,7 @@ namespace {
         // terminate minimax if search over
         if (stopSearch) return 0;
 
-        int static_eval = Evaluation::evaluate(board); // already from white's perspective
+        int static_eval = Evaluation::evaluate(board); // from white's perspective
         nodesSearched++;
 
         int best_value = static_eval;
@@ -223,7 +221,6 @@ namespace {
                 int currEval = minimax(board, depth - 1, alpha, beta, movePool, plyFromRoot + 1, nodesSearched);
                 board.unMakeMove(moveInfo);
 
-                /*
                 // update killer moves
                 if (currEval >= beta) {
                     killerMoves[1][plyFromRoot] = killerMoves[0][plyFromRoot];
@@ -231,7 +228,6 @@ namespace {
                     
                     return currEval;
                 }
-                */
 
                 bestEval = max(bestEval, currEval);
                 
@@ -258,7 +254,6 @@ namespace {
                 int currEval = minimax(board, depth - 1, alpha, beta, movePool, plyFromRoot + 1, nodesSearched);
                 board.unMakeMove(moveInfo);
 
-                /*
                 // update killer moves
                 if (currEval <= alpha) {
                     if (move.capturedPiece == NONE && move.promotionPiece == NONE) {
@@ -268,7 +263,6 @@ namespace {
                     
                     return currEval;
                 }
-                */
 
                 bestEval = min(bestEval, currEval);
 
